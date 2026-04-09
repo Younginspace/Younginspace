@@ -41,7 +41,7 @@ export function initAboutScene(canvas: HTMLCanvasElement) {
   orbitControls.enableDamping = true;
   orbitControls.dampingFactor = 0.08;
   orbitControls.enablePan = false;
-  orbitControls.enableZoom = true;
+  orbitControls.enableZoom = false;
   orbitControls.rotateSpeed = 0.5;
   orbitControls.minDistance = 5;
   orbitControls.maxDistance = 30;
