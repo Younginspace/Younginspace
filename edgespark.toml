@@ -7,3 +7,6 @@ path = "server"
 path = "web"
 output_path = "web/dist"
 
+[db]
+migration_branch = "feat/message-board"
+
