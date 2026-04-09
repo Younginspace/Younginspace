@@ -64,3 +64,9 @@ temp/
 # Lock files (regenerated on npm install)
 server/package-lock.json
 web/package-lock.json
+
+# Temp/reference files
+*.mp4
+*.glb
+!web/public/**/*.glb
+phmplanet.jpeg
