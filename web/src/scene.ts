@@ -5,7 +5,7 @@ import { projects } from "./data";
 import { createCamera } from "./camera";
 import { createPlanetSystem, setupPlanet, hidePlanet, animatePlanets, preloadTexture } from "./stars";
 import { initProjectInfo, showProjectInfo, hideProjectInfo } from "./planet-text";
-import { aboutProject, initAbout, showAbout, hideAbout } from "./about";
+import { aboutProject, initAbout, showAbout } from "./about";
 import { createStarfield, animateStarfield } from "./starfield";
 import { createNebula } from "./nebula";
 import { createSpaceship, updateSpaceship } from "./spaceship";
@@ -100,7 +100,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
   hidePlanet(planetSystem.planetB);
 
   // --- Scroll controller ---
-  const totalScenes = projects.length + 2; // start + projects + about
+  const totalScenes = projects.length + 1; // start + projects (about is nav-only)
   const scrollController = createScrollController(totalScenes);
 
   // --- Title management ---
@@ -129,10 +129,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
       dot.className = "scene-dot";
       indicatorEl.appendChild(dot);
     }
-    // About scene dot
-    const aboutDot = document.createElement("div");
-    aboutDot.className = "scene-dot";
-    indicatorEl.appendChild(aboutDot);
   }
 
   function updateSceneIndicator(projectIndex: number) {
@@ -145,8 +141,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
 
   // --- Scene change handler ---
   function handleSceneChange(direction: 1 | -1) {
+    // Block scroll when on about scene
+    if (currentSceneIndex === ABOUT_SCENE_INDEX) return;
     const nextIndex = currentSceneIndex + direction;
-    if (nextIndex < -1 || nextIndex > ABOUT_SCENE_INDEX) return;
+    if (nextIndex < -1 || nextIndex >= projects.length) return;
     if (scrollController.isTransitioning) return;
 
     scrollController.isTransitioning = true;
@@ -234,28 +232,14 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
       return;
     }
 
-    // General scene-to-scene flyby (project↔project, project↔about, about↔project)
-    const isNextAbout = nextIndex === ABOUT_SCENE_INDEX;
-    const isCurrentAbout = currentSceneIndex === ABOUT_SCENE_INDEX;
-
-    if (isCurrentAbout) hideAbout();
-    else hideProjectInfo();
-
-    const nextData = isNextAbout ? aboutProject : projects[nextIndex];
-
-    // Screen-space shadow for about scene
-    if (isNextAbout) {
-      aboutShadow.style.display = "block";
-      gsap.fromTo(aboutShadow, { opacity: 0 }, { opacity: 1, duration: 0.6, delay: 0.4 });
-    } else if (isCurrentAbout) {
-      gsap.to(aboutShadow, { opacity: 0, duration: 0.3, onComplete() { aboutShadow.style.display = "none"; } });
-    }
+    // Project-to-project flyby transition
+    hideProjectInfo();
 
     const tl = createTransition({
       currentPlanet: getCurrentPlanet(),
       nextPlanet: getNextPlanet(),
       starfield,
-      nextProject: nextData,
+      nextProject: projects[nextIndex],
       setupPlanetFn: (planet, proj) => setupPlanet(planet, proj, planetSystem.textures),
       direction,
       canvas,
@@ -265,8 +249,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
         scrollController.currentScene = nextIndex + 1;
         useA = !useA;
         scrollController.isTransitioning = false;
-        if (isNextAbout) showAbout();
-        else showProjectInfo(projects[nextIndex]);
+        showProjectInfo(projects[nextIndex]);
         updateSceneIndicator(nextIndex);
       },
     });
@@ -301,6 +284,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
   // --- View mode handling ---
   function enterViewMode() {
     if (viewModeAnimating) return;
+    // Disable view mode on about scene
+    if (currentSceneIndex === ABOUT_SCENE_INDEX) return;
     viewModeAnimating = true;
 
     if (currentSceneIndex < 0) {
