@@ -3,8 +3,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import gsap from "gsap";
 import { projects } from "./data";
 import { createCamera } from "./camera";
-import { createPlanetSystem, setupPlanet, hidePlanet, animatePlanets } from "./stars";
+import { createPlanetSystem, setupPlanet, hidePlanet, animatePlanets, preloadTexture } from "./stars";
 import { initProjectInfo, showProjectInfo, hideProjectInfo } from "./planet-text";
+import { aboutProject, initAbout, showAbout, hideAbout } from "./about";
 import { createStarfield, animateStarfield } from "./starfield";
 import { createNebula } from "./nebula";
 import { createSpaceship, updateSpaceship } from "./spaceship";
@@ -20,7 +21,11 @@ import {
   SHIP_START_SCALE,
 } from "./scene-layout";
 
-export function initScene(canvas: HTMLCanvasElement) {
+export interface SceneAPI {
+  jumpToAbout(): void;
+}
+
+export function initScene(canvas: HTMLCanvasElement): SceneAPI {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -54,6 +59,7 @@ export function initScene(canvas: HTMLCanvasElement) {
 
   // Planet system
   const planetSystem = createPlanetSystem(projects);
+  preloadTexture(planetSystem, aboutProject.texture);
   scene.add(planetSystem.sceneGroup);
 
   // Spaceship (camera child — same pose in ALL scenes)
@@ -64,14 +70,19 @@ export function initScene(canvas: HTMLCanvasElement) {
 
   // Project info overlay
   initProjectInfo();
+  initAbout();
 
   // --- DOM references ---
   const titleEl = document.getElementById("title")!;
   const headerTitleEl = document.getElementById("header-title")!;
   const warpOverlay = document.getElementById("warp-overlay")!;
 
+  // --- About shadow overlay (screen-space, rotation-proof) ---
+  const aboutShadow = document.getElementById("about-shadow")!;
+
   // --- State ---
-  let currentSceneIndex = -1; // -1 = start, 0..N-1 = projects
+  const ABOUT_SCENE_INDEX = projects.length; // scene after all projects
+  let currentSceneIndex = -1; // -1 = start, 0..N-1 = projects, N = about
   let useA = true;
   let titleShrunk = false;
   let viewModeAnimating = false;
@@ -89,7 +100,7 @@ export function initScene(canvas: HTMLCanvasElement) {
   hidePlanet(planetSystem.planetB);
 
   // --- Scroll controller ---
-  const totalScenes = projects.length + 1;
+  const totalScenes = projects.length + 2; // start + projects + about
   const scrollController = createScrollController(totalScenes);
 
   // --- Title management ---
@@ -118,6 +129,10 @@ export function initScene(canvas: HTMLCanvasElement) {
       dot.className = "scene-dot";
       indicatorEl.appendChild(dot);
     }
+    // About scene dot
+    const aboutDot = document.createElement("div");
+    aboutDot.className = "scene-dot";
+    indicatorEl.appendChild(aboutDot);
   }
 
   function updateSceneIndicator(projectIndex: number) {
@@ -131,7 +146,7 @@ export function initScene(canvas: HTMLCanvasElement) {
   // --- Scene change handler ---
   function handleSceneChange(direction: 1 | -1) {
     const nextIndex = currentSceneIndex + direction;
-    if (nextIndex < -1 || nextIndex >= projects.length) return;
+    if (nextIndex < -1 || nextIndex > ABOUT_SCENE_INDEX) return;
     if (scrollController.isTransitioning) return;
 
     scrollController.isTransitioning = true;
@@ -219,31 +234,40 @@ export function initScene(canvas: HTMLCanvasElement) {
       return;
     }
 
-    // Normal project-to-project: horizontal flyby transition
-    const nextProjectIndex = nextIndex;
-    if (nextProjectIndex < 0 || nextProjectIndex >= projects.length) {
-      scrollController.isTransitioning = false;
-      return;
-    }
+    // General scene-to-scene flyby (project↔project, project↔about, about↔project)
+    const isNextAbout = nextIndex === ABOUT_SCENE_INDEX;
+    const isCurrentAbout = currentSceneIndex === ABOUT_SCENE_INDEX;
 
-    hideProjectInfo();
+    if (isCurrentAbout) hideAbout();
+    else hideProjectInfo();
+
+    const nextData = isNextAbout ? aboutProject : projects[nextIndex];
+
+    // Screen-space shadow for about scene
+    if (isNextAbout) {
+      aboutShadow.style.display = "block";
+      gsap.fromTo(aboutShadow, { opacity: 0 }, { opacity: 1, duration: 0.6, delay: 0.4 });
+    } else if (isCurrentAbout) {
+      gsap.to(aboutShadow, { opacity: 0, duration: 0.3, onComplete() { aboutShadow.style.display = "none"; } });
+    }
 
     const tl = createTransition({
       currentPlanet: getCurrentPlanet(),
       nextPlanet: getNextPlanet(),
       starfield,
-      nextProject: projects[nextProjectIndex],
+      nextProject: nextData,
       setupPlanetFn: (planet, proj) => setupPlanet(planet, proj, planetSystem.textures),
       direction,
       canvas,
       warpOverlay,
       onComplete: () => {
-        currentSceneIndex = nextProjectIndex;
-        scrollController.currentScene = nextProjectIndex + 1;
+        currentSceneIndex = nextIndex;
+        scrollController.currentScene = nextIndex + 1;
         useA = !useA;
         scrollController.isTransitioning = false;
-        showProjectInfo(projects[nextProjectIndex]);
-        updateSceneIndicator(nextProjectIndex);
+        if (isNextAbout) showAbout();
+        else showProjectInfo(projects[nextIndex]);
+        updateSceneIndicator(nextIndex);
       },
     });
 
@@ -303,7 +327,7 @@ export function initScene(canvas: HTMLCanvasElement) {
         },
       });
     } else {
-      // Project page: planet is centered, seamless entry
+      // Project/about page: planet is centered, seamless entry
       orbitControls.target.set(0, 0, PLANET_POSITION.z);
       orbitControls.enableZoom = true;
       orbitControls.minDistance = 5;
@@ -393,6 +417,66 @@ export function initScene(canvas: HTMLCanvasElement) {
 
   // View mode zoom is handled by OrbitControls (dolly zoom) for both start + project pages
 
+  // --- Jump to about (from nav link) ---
+  function jumpToAbout() {
+    if (currentSceneIndex === ABOUT_SCENE_INDEX) return;
+    if (scrollController.isTransitioning) return;
+    scrollController.isTransitioning = true;
+
+    // Hide current content
+    if (currentSceneIndex >= 0 && currentSceneIndex < projects.length) {
+      hideProjectInfo();
+    }
+
+    // Warp out
+    const blurProxy = { blur: 0 };
+    gsap.to(blurProxy, {
+      blur: 12,
+      duration: 0.25,
+      ease: "power2.in",
+      onUpdate() { canvas.style.filter = `blur(${blurProxy.blur}px)`; },
+    });
+    gsap.to(warpOverlay, { opacity: 0.6, duration: 0.25, ease: "power2.in" });
+
+    gsap.delayedCall(0.3, () => {
+      // Teleport: move ship if coming from start
+      if (currentSceneIndex === -1) {
+        shrinkTitle();
+        spaceship.group.position.copy(SHIP_POSITION);
+        if (spaceship.model) spaceship.model.scale.setScalar(SHIP_SCALE);
+      }
+
+      // Swap planets
+      hidePlanet(getCurrentPlanet());
+      hidePlanet(getNextPlanet());
+
+      setupPlanet(getCurrentPlanet(), aboutProject, planetSystem.textures);
+      getCurrentPlanet().group.position.copy(PLANET_POSITION);
+      getCurrentPlanet().group.visible = true;
+
+      // Screen-space shadow
+      aboutShadow.style.display = "block";
+      aboutShadow.style.opacity = "1";
+
+      // Warp in
+      gsap.to(blurProxy, {
+        blur: 0,
+        duration: 0.35,
+        ease: "power2.out",
+        onUpdate() {
+          canvas.style.filter = blurProxy.blur < 0.5 ? "none" : `blur(${blurProxy.blur}px)`;
+        },
+      });
+      gsap.to(warpOverlay, { opacity: 0, duration: 0.35, ease: "power2.out" });
+
+      currentSceneIndex = ABOUT_SCENE_INDEX;
+      scrollController.currentScene = ABOUT_SCENE_INDEX + 1;
+      scrollController.isTransitioning = false;
+      showAbout();
+      updateSceneIndicator(ABOUT_SCENE_INDEX);
+    });
+  }
+
   // --- Resize ---
   window.addEventListener("resize", () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -422,4 +506,6 @@ export function initScene(canvas: HTMLCanvasElement) {
   }
 
   animate();
+
+  return { jumpToAbout };
 }

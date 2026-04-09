@@ -102,6 +102,15 @@ export function createPlanetSystem(projects: ProjectData[]): PlanetSystem {
   return { sceneGroup, planetA, planetB, sunLight, textures };
 }
 
+export function preloadTexture(system: PlanetSystem, path: string) {
+  if (!system.textures.has(path)) {
+    const tex = textureLoader.load(path);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    system.textures.set(path, tex);
+  }
+}
+
 export function setupPlanet(
   planet: PlanetInstance,
   project: ProjectData,
