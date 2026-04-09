@@ -1,35 +1,45 @@
 import "./index.css";
-import { initI18n } from "./i18n";
-import { initAuthModal, setupSignInButton, updateHeaderForUser } from "./auth-modal";
-import { initMessageBoard, setupBoardButton } from "./message-board";
-
-const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-
-// Shared initialization
-initI18n();
-initAuthModal();
-setupSignInButton();
-updateHeaderForUser();
-initMessageBoard();
-setupBoardButton();
 
 const path = window.location.pathname;
 
 if (path === "/about") {
-  // About page: standalone scene
+  // About standalone page
   import("./about-scene").then(({ initAboutScene }) => {
+    const canvas = document.getElementById("canvas") as HTMLCanvasElement;
     initAboutScene(canvas);
   });
-} else {
-  // Main page: full scene with scroll navigation
-  import("./scene").then(({ initScene }) => {
-    initScene(canvas);
+  // Still need i18n + auth on about page
+  Promise.all([
+    import("./i18n"),
+    import("./auth-modal"),
+  ]).then(([{ initI18n }, { initAuthModal, setupSignInButton, updateHeaderForUser }]) => {
+    initI18n();
+    initAuthModal();
+    setupSignInButton();
+    updateHeaderForUser();
   });
+} else if (path === "/guestbook") {
+  // Guestbook standalone page
+  import("./guestbook-page").then(({ initGuestbookPage }) => initGuestbookPage());
+} else {
+  // 3D homepage
+  Promise.all([
+    import("./scene"),
+    import("./i18n"),
+    import("./auth-modal"),
+  ]).then(([{ initScene }, { initI18n }, { initAuthModal, setupSignInButton, updateHeaderForUser }]) => {
+    const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+    initScene(canvas);
+    initI18n();
+    initAuthModal();
+    setupSignInButton();
+    updateHeaderForUser();
 
-  // About nav link → navigate to /about
-  const aboutLink = document.querySelector<HTMLElement>('[data-i18n="about"]');
-  aboutLink?.addEventListener("click", (e) => {
-    e.preventDefault();
-    window.location.href = "/about";
+    // About nav link → navigate to /about
+    const aboutLink = document.querySelector<HTMLElement>('[data-i18n="about"]');
+    aboutLink?.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.location.href = "/about";
+    });
   });
 }
