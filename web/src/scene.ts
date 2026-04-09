@@ -382,29 +382,29 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
         onComplete: onDone,
       });
     } else {
-      // Start page: animate camera + ship back simultaneously, then reattach
-      const shipWorldPos = spaceship.group.position.clone();
-      const lookDist = 5;
-      const dir = new THREE.Vector3();
-      camera.getWorldDirection(dir);
-      const startLook = dir.multiplyScalar(lookDist).add(startPos);
+      // Start page: quaternion slerp for smooth camera rotation back
+      const startQuat = camera.quaternion.clone();
+      const shipStartPos = spaceship.group.position.clone();
 
-      const proxy = {
-        px: startPos.x, py: startPos.y, pz: startPos.z,
-        lx: startLook.x, ly: startLook.y, lz: startLook.z,
-        sx: shipWorldPos.x, sy: shipWorldPos.y, sz: shipWorldPos.z,
-      };
+      // Compute target orientation: camera at origin looking forward
+      const targetPos = new THREE.Vector3(0, 0, 0);
+      const targetQuat = new THREE.Quaternion();
+      {
+        const tmpCam = new THREE.PerspectiveCamera();
+        tmpCam.position.set(0, 0, 0);
+        tmpCam.lookAt(0, 0, -1);
+        targetQuat.copy(tmpCam.quaternion);
+      }
 
+      const proxy = { t: 0 };
       gsap.to(proxy, {
-        px: 0, py: 0, pz: 0,
-        lx: 0, ly: 0, lz: -lookDist,
-        sx: SHIP_START_POSITION.x, sy: SHIP_START_POSITION.y, sz: SHIP_START_POSITION.z,
+        t: 1,
         duration: 0.6,
         ease: "power2.inOut",
         onUpdate() {
-          camera.position.set(proxy.px, proxy.py, proxy.pz);
-          camera.lookAt(proxy.lx, proxy.ly, proxy.lz);
-          spaceship.group.position.set(proxy.sx, proxy.sy, proxy.sz);
+          camera.position.lerpVectors(startPos, targetPos, proxy.t);
+          camera.quaternion.slerpQuaternions(startQuat, targetQuat, proxy.t);
+          spaceship.group.position.lerpVectors(shipStartPos, SHIP_START_POSITION, proxy.t);
         },
         onComplete() {
           reattachShipToCamera();
