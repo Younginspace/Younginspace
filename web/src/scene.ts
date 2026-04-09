@@ -382,19 +382,14 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
         onComplete: onDone,
       });
     } else {
-      // Start page: quaternion slerp for smooth camera rotation back
-      const startQuat = camera.quaternion.clone();
-      const shipStartPos = spaceship.group.position.clone();
+      // Start page: arc interpolation around ship (same pattern as project page)
+      // Ship is fixed at center — camera only rotates + zooms around it
+      const orbitCenter = spaceship.group.position.clone();
+      const startOffset = startPos.clone().sub(orbitCenter);
+      const endOffset = new THREE.Vector3(0, 0, 0).sub(orbitCenter);
 
-      // Compute target orientation: camera at origin looking forward
-      const targetPos = new THREE.Vector3(0, 0, 0);
-      const targetQuat = new THREE.Quaternion();
-      {
-        const tmpCam = new THREE.PerspectiveCamera();
-        tmpCam.position.set(0, 0, 0);
-        tmpCam.lookAt(0, 0, -1);
-        targetQuat.copy(tmpCam.quaternion);
-      }
+      const startSph = new THREE.Spherical().setFromVector3(startOffset);
+      const endSph = new THREE.Spherical().setFromVector3(endOffset);
 
       const proxy = { t: 0 };
       gsap.to(proxy, {
@@ -402,9 +397,13 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
         duration: 0.6,
         ease: "power2.inOut",
         onUpdate() {
-          camera.position.lerpVectors(startPos, targetPos, proxy.t);
-          camera.quaternion.slerpQuaternions(startQuat, targetQuat, proxy.t);
-          spaceship.group.position.lerpVectors(shipStartPos, SHIP_START_POSITION, proxy.t);
+          const sph = new THREE.Spherical(
+            THREE.MathUtils.lerp(startSph.radius, endSph.radius, proxy.t),
+            THREE.MathUtils.lerp(startSph.phi, endSph.phi, proxy.t),
+            THREE.MathUtils.lerp(startSph.theta, endSph.theta, proxy.t),
+          );
+          camera.position.setFromSpherical(sph).add(orbitCenter);
+          camera.lookAt(orbitCenter);
         },
         onComplete() {
           reattachShipToCamera();
