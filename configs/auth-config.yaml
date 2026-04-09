@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://schemas.edgespark.dev/v1/auth-config.schema.json
+
+disableSignUp: false
+
+session:
+  expiresIn: 604800
+  updateAge: 86400
+
+providerEmailPassword:
+  enabled: true
+  config:
+    minPasswordLength: 8
+    requireEmailVerification: false
+    requirePasswordResetEmailVerification: false
+    revokeSessionsOnPasswordReset: false
+
+providerGoogle:
+  enabled: true
+  config:
+    clientIdVarRef: GOOGLE_CLIENT_ID
+    clientSecretRef: GOOGLE_CLIENT_SECRET

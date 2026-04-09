@@ -1,0 +1,486 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: 'Space Mono', monospace;
+  color: #fff;
+}
+
+#canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+/* ---- Header ---- */
+#header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.2rem 2.5rem;
+  pointer-events: none;
+}
+
+#nav-right {
+  display: flex;
+  align-items: center;
+  gap: 1.8rem;
+  pointer-events: auto;
+}
+
+#header-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  pointer-events: none;
+}
+
+.nav-link {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: none;
+  letter-spacing: 0.08em;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.25s;
+  padding: 0;
+}
+
+.nav-link:hover {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.nav-signin {
+  padding: 0.35rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  transition: color 0.25s, border-color 0.25s, background 0.25s;
+}
+
+.nav-signin:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+#lang-toggle {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+}
+
+.nav-signin.logged-in {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer !important;
+}
+
+#user-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  min-width: 120px;
+  background: rgba(18, 14, 12, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 0.3rem;
+  z-index: 30;
+}
+
+#signout-btn {
+  width: 100%;
+  padding: 0.5rem 0.8rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s, color 0.2s;
+}
+
+#signout-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+#title {
+  position: fixed;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 5rem;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  color: #fff;
+  text-shadow:
+    0 0 30px rgba(255, 255, 255, 0.5),
+    0 0 80px rgba(200, 220, 255, 0.15),
+    0 2px 4px rgba(0, 0, 0, 0.8);
+  opacity: 0.9;
+  transition: opacity 0.8s ease;
+  animation: breathe 5s ease-in-out infinite;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+@keyframes breathe {
+  0%, 100% {
+    text-shadow:
+      0 0 30px rgba(255, 255, 255, 0.4),
+      0 0 80px rgba(200, 220, 255, 0.1),
+      0 2px 4px rgba(0, 0, 0, 0.8);
+  }
+  50% {
+    text-shadow:
+      0 0 40px rgba(255, 255, 255, 0.6),
+      0 0 100px rgba(200, 220, 255, 0.2),
+      0 2px 4px rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* ---- Warp Overlay (transition motion blur) ---- */
+#warp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 20%,
+    rgba(0, 0, 0, 0.3) 50%,
+    rgba(0, 0, 0, 0.85) 100%
+  );
+}
+
+/* ---- Project Info Overlay (flat, no background) ---- */
+#project-info {
+  display: none;
+  opacity: 0;
+  position: fixed;
+  left: 55%;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  max-width: 380px;
+  pointer-events: none;
+}
+
+#project-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 0 0 0.6rem 0;
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+}
+
+#project-desc {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 0.8rem 0;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+}
+
+#project-link {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #4FC3F7;
+  text-decoration: none;
+  pointer-events: auto;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+  transition: color 0.2s;
+}
+
+#project-link:hover {
+  color: #81D4FA;
+}
+
+/* ---- Space Hint (view mode) ---- */
+#space-hint {
+  display: none;
+  position: fixed;
+  bottom: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.1em;
+  animation: scrollHintPulse 2.5s ease-in-out infinite;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ---- Scene Indicator ---- */
+#scene-indicator {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  display: flex;
+  gap: 0.6rem;
+  pointer-events: none;
+}
+
+.scene-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transition: background 0.4s, transform 0.4s;
+}
+
+.scene-dot.active {
+  background: rgba(255, 255, 255, 0.8);
+  transform: scale(1.4);
+}
+
+/* ---- Scroll Hint ---- */
+#scroll-hint {
+  position: fixed;
+  bottom: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.1em;
+  animation: scrollHintPulse 2.5s ease-in-out infinite;
+  pointer-events: none;
+  user-select: none;
+}
+
+@keyframes scrollHintPulse {
+  0%, 100% { opacity: 0.25; transform: translateX(-50%) translateY(0); }
+  50% { opacity: 0.55; transform: translateX(-50%) translateY(-6px); }
+}
+
+
+/* ---- Auth Modal ---- */
+#auth-modal {
+  display: none;
+  opacity: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  justify-content: center;
+  align-items: center;
+  transition: opacity 0.25s;
+}
+
+#auth-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+#auth-dialog {
+  position: relative;
+  z-index: 1;
+  width: 400px;
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 2rem;
+  background: rgba(18, 14, 12, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+#auth-close {
+  position: absolute;
+  top: 0.8rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  z-index: 2;
+}
+
+#auth-close:hover {
+  color: #fff;
+}
+
+#auth-container {
+  min-height: 200px;
+}
+
+/* ---- EdgeSpark Auth UI — Space Glassmorphism Theme ---- */
+[data-edgespark-auth] {
+  --edgespark-auth-bg: transparent;
+  --edgespark-auth-bg-muted: rgba(255, 255, 255, 0.04);
+  --edgespark-auth-border: rgba(255, 255, 255, 0.12);
+  --edgespark-auth-text: rgba(255, 255, 255, 0.92);
+  --edgespark-auth-text-muted: rgba(255, 255, 255, 0.45);
+  --edgespark-auth-primary: #4FC3F7;
+  --edgespark-auth-primary-hover: #81D4FA;
+  --edgespark-auth-error: #ef6b73;
+  --edgespark-auth-info: #4FC3F7;
+  --edgespark-auth-radius-card: 0;
+  --edgespark-auth-radius-control: 8px;
+  --edgespark-auth-shadow: none;
+  --edgespark-auth-font: 'Space Mono', monospace;
+}
+
+/* Card — remove SDK card chrome, let our dialog be the container */
+.edgespark-auth__card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* Title */
+.edgespark-auth__title {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #fff;
+}
+
+/* Inputs — frosted dark fields */
+.edgespark-auth__input {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  font-family: 'Space Mono', monospace;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.edgespark-auth__input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.edgespark-auth__input:focus {
+  border-color: rgba(79, 195, 247, 0.5) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.15), 0 0 20px rgba(79, 195, 247, 0.08);
+}
+
+/* Primary button — glowing accent */
+.edgespark-auth__button--primary {
+  background: rgba(79, 195, 247, 0.18) !important;
+  border: 1px solid rgba(79, 195, 247, 0.35) !important;
+  color: #4FC3F7 !important;
+  font-family: 'Space Mono', monospace;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+}
+
+.edgespark-auth__button--primary:hover:not(:disabled) {
+  background: rgba(79, 195, 247, 0.28) !important;
+  border-color: rgba(79, 195, 247, 0.55) !important;
+  box-shadow: 0 0 24px rgba(79, 195, 247, 0.15);
+}
+
+/* Secondary button */
+.edgespark-auth__button--secondary {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-family: 'Space Mono', monospace;
+}
+
+.edgespark-auth__button--secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Links */
+.edgespark-auth__link {
+  color: #4FC3F7 !important;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85rem;
+  transition: color 0.2s;
+}
+
+.edgespark-auth__link:hover {
+  color: #81D4FA !important;
+}
+
+/* Divider */
+.edgespark-auth__divider {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.edgespark-auth__divider::before {
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.edgespark-auth__divider span {
+  background: rgba(18, 14, 12, 0.92) !important;
+}
+
+/* Status messages */
+.edgespark-auth__status--error {
+  background: rgba(239, 107, 115, 0.1) !important;
+  color: #ef6b73 !important;
+}
+
+.edgespark-auth__status--info {
+  background: rgba(79, 195, 247, 0.1) !important;
+  color: #4FC3F7 !important;
+}
+
+.edgespark-auth__status--muted {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Labels */
+.edgespark-auth__label {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}

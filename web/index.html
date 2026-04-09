@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Younginspace</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <div id="warp-overlay"></div>
+
+    <header id="header">
+      <div id="header-title">YOUNGINSPACE</div>
+      <nav id="nav-right">
+        <a href="#" class="nav-link" data-i18n="about">About</a>
+        <a href="#" class="nav-link" data-i18n="blog">Blog</a>
+        <button id="lang-toggle" class="nav-link" title="Switch language">EN</button>
+        <div style="position:relative">
+          <a href="#" class="nav-link nav-signin" data-i18n="signin">Sign In</a>
+          <div id="user-dropdown">
+            <button id="signout-btn" data-i18n="signout">Sign Out</button>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <h1 id="title">Younginspace</h1>
+
+    <div id="project-info">
+      <h2 id="project-title"></h2>
+      <p id="project-desc"></p>
+      <a id="project-link" href="#" target="_blank" rel="noopener noreferrer">GitHub &rarr;</a>
+    </div>
+
+    <div id="scroll-hint" data-i18n="scrollHint">Scroll to explore</div>
+    <div id="space-hint" data-i18n="spaceHint">Press space to continue</div>
+
+    <div id="scene-indicator"></div>
+
+    <div id="auth-modal">
+      <div id="auth-backdrop"></div>
+      <div id="auth-dialog">
+        <button id="auth-close">&times;</button>
+        <div id="auth-container"></div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
