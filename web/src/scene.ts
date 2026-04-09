@@ -284,8 +284,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
   // --- View mode handling ---
   function enterViewMode() {
     if (viewModeAnimating) return;
-    // Disable view mode on about scene
-    if (currentSceneIndex === ABOUT_SCENE_INDEX) return;
     viewModeAnimating = true;
 
     if (currentSceneIndex < 0) {
@@ -313,8 +311,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
       });
     } else {
       // Project/about page: planet is centered, seamless entry
+      const isAbout = currentSceneIndex === ABOUT_SCENE_INDEX;
       orbitControls.target.set(0, 0, PLANET_POSITION.z);
-      orbitControls.enableZoom = true;
+      orbitControls.enableZoom = !isAbout;
       orbitControls.minDistance = 5;
       orbitControls.maxDistance = 30;
       orbitControls.enabled = true;
