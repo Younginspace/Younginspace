@@ -84,6 +84,7 @@ export function initAboutScene(canvas: HTMLCanvasElement) {
   const headerTitleEl = document.getElementById("header-title")!;
   headerTitleEl.style.opacity = "1";
   headerTitleEl.style.cursor = "pointer";
+  headerTitleEl.style.pointerEvents = "auto";
   headerTitleEl.addEventListener("click", () => {
     window.location.href = "/";
   });
