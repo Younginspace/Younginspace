@@ -485,7 +485,7 @@ html, body {
   text-transform: uppercase;
 }
 
-/* ---- Guestbook Floating Button ---- */
+/* ---- Guestbook Floating Link ---- */
 #guestbook-fab {
   position: fixed;
   bottom: 2rem;
@@ -500,6 +500,7 @@ html, body {
   color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
   letter-spacing: 0.08em;
+  text-decoration: none;
   transition: color 0.25s, border-color 0.25s, background 0.25s;
 }
 
@@ -509,82 +510,45 @@ html, body {
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* ---- Message Board Modal ---- */
-#board-modal {
-  display: none;
-  opacity: 0;
+/* ---- Guestbook Standalone Page ---- */
+#guestbook-page {
   position: fixed;
   inset: 0;
-  z-index: 90;
-  justify-content: center;
-  align-items: center;
-  transition: opacity 0.25s;
-}
-
-#board-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
-
-#board-dialog {
-  position: relative;
-  z-index: 1;
-  width: 520px;
-  max-width: 92vw;
-  max-height: 85vh;
+  z-index: 5;
+  background: #000;
+  overflow-y: auto;
   display: flex;
-  flex-direction: column;
-  padding: 2rem;
-  background: rgba(18, 14, 12, 0.92);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  justify-content: center;
+  padding: 6rem 1.5rem 3rem;
 }
 
-#board-close {
-  position: absolute;
-  top: 0.8rem;
-  right: 1rem;
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 1.5rem;
-  cursor: pointer;
-  transition: color 0.2s;
-  z-index: 2;
+#gb-container {
+  width: 100%;
+  max-width: 580px;
 }
 
-#board-close:hover {
-  color: #fff;
-}
-
-#board-title {
+#gb-title {
   font-family: 'Space Mono', monospace;
-  font-size: 1.2rem;
+  font-size: 1.4rem;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.95);
   letter-spacing: 0.06em;
-  margin: 0 0 1rem 0;
+  margin: 0 0 1.5rem 0;
 }
 
 /* Tabs */
-#board-tabs {
+#gb-tabs {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.2rem;
 }
 
-.board-tab {
+.gb-tab {
   font-family: 'Space Mono', monospace;
   font-size: 0.75rem;
   padding: 0.35rem 0.8rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 6px;
   color: rgba(255, 255, 255, 0.5);
   cursor: pointer;
@@ -592,56 +556,40 @@ html, body {
   letter-spacing: 0.05em;
 }
 
-.board-tab:hover {
-  background: rgba(255, 255, 255, 0.08);
+.gb-tab:hover {
   color: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
-.board-tab.active {
+.gb-tab.active {
   background: rgba(79, 195, 247, 0.15);
   border-color: rgba(79, 195, 247, 0.3);
   color: #4FC3F7;
 }
 
 /* Message List */
-#board-list,
-#board-admin-list {
-  flex: 1;
-  overflow-y: auto;
-  max-height: 380px;
-  margin-bottom: 1rem;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+#gb-list,
+#gb-admin-list {
+  margin-bottom: 1.5rem;
 }
 
-#board-list::-webkit-scrollbar,
-#board-admin-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-#board-list::-webkit-scrollbar-thumb,
-#board-admin-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 2px;
-}
-
-.board-msg {
-  padding: 0.8rem 0;
+.gb-msg {
+  padding: 0.9rem 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.board-msg:last-child {
+.gb-msg:last-child {
   border-bottom: none;
 }
 
-.board-msg-header {
+.gb-msg-header {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.35rem;
 }
 
-.board-msg-name {
+.gb-msg-name {
   font-family: 'Space Mono', monospace;
   font-size: 0.8rem;
   font-weight: 700;
@@ -649,89 +597,90 @@ html, body {
   letter-spacing: 0.03em;
 }
 
-.board-msg-time {
+.gb-msg-time {
   font-family: 'Space Mono', monospace;
   font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.3);
 }
 
-.board-msg-status {
+.gb-msg-status {
   font-family: 'Space Mono', monospace;
   font-size: 0.65rem;
   color: rgba(255, 255, 255, 0.3);
   margin-left: auto;
 }
 
-.board-msg-content {
+.gb-msg-content {
   font-family: 'Space Mono', monospace;
-  font-size: 0.82rem;
-  line-height: 1.5;
+  font-size: 0.85rem;
+  line-height: 1.6;
   color: rgba(255, 255, 255, 0.7);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.board-msg-hidden {
+.gb-msg-hidden {
   opacity: 0.45;
 }
 
-.board-msg-actions {
+.gb-msg-actions {
   display: flex;
   gap: 0.5rem;
-  margin-top: 0.4rem;
+  margin-top: 0.5rem;
 }
 
-.board-action-btn {
+.gb-action-btn {
   font-family: 'Space Mono', monospace;
   font-size: 0.7rem;
-  padding: 0.2rem 0.6rem;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.25rem 0.65rem;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 4px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.55);
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.board-action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+.gb-action-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
-.board-action-delete {
+.gb-action-delete {
   color: rgba(239, 107, 115, 0.7);
   border-color: rgba(239, 107, 115, 0.2);
 }
 
-.board-action-delete:hover {
-  background: rgba(239, 107, 115, 0.12);
+.gb-action-delete:hover {
+  background: rgba(239, 107, 115, 0.1);
   color: #ef6b73;
   border-color: rgba(239, 107, 115, 0.4);
 }
 
-.board-empty {
+.gb-empty {
   font-family: 'Space Mono', monospace;
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.3);
   text-align: center;
-  padding: 2rem 0;
+  padding: 3rem 0;
 }
 
 /* Form */
-#board-form {
+#gb-form {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-#board-input {
+#gb-input {
   width: 100%;
   resize: none;
   font-family: 'Space Mono', monospace;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   line-height: 1.5;
   padding: 0.7rem 0.8rem;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   color: #fff;
@@ -739,28 +688,28 @@ html, body {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-#board-input::placeholder {
+#gb-input::placeholder {
   color: rgba(255, 255, 255, 0.25);
 }
 
-#board-input:focus {
+#gb-input:focus {
   border-color: rgba(79, 195, 247, 0.5);
   box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.12);
 }
 
-#board-form-footer {
+#gb-form-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-#board-char-count {
+#gb-char-count {
   font-family: 'Space Mono', monospace;
   font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.35);
 }
 
-#board-submit {
+#gb-submit {
   font-family: 'Space Mono', monospace;
   font-size: 0.8rem;
   font-weight: 600;
@@ -774,21 +723,21 @@ html, body {
   transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
 }
 
-#board-submit:hover:not(:disabled) {
+#gb-submit:hover:not(:disabled) {
   background: rgba(79, 195, 247, 0.28);
   border-color: rgba(79, 195, 247, 0.55);
   box-shadow: 0 0 24px rgba(79, 195, 247, 0.15);
 }
 
-#board-submit:disabled {
+#gb-submit:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-#board-login-hint {
+#gb-login-hint {
   font-family: 'Space Mono', monospace;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.4);
   text-align: center;
-  padding: 0.8rem 0;
+  padding: 1rem 0;
 }
