@@ -103,6 +103,9 @@ export function initAboutScene(canvas: HTMLCanvasElement) {
   initAbout();
   showAbout();
 
+  // Prevent wheel from doing anything (no zoom, no scene change)
+  canvas.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
+
   // Mark About nav link as active
   const aboutLink = document.querySelector<HTMLElement>('[data-i18n="about"]');
   if (aboutLink) aboutLink.classList.add("active");
