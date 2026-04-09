@@ -41,7 +41,7 @@ export function initAboutScene(canvas: HTMLCanvasElement) {
   orbitControls.enableDamping = true;
   orbitControls.dampingFactor = 0.08;
   orbitControls.enablePan = false;
-  orbitControls.enableZoom = true;
+  orbitControls.enableZoom = false;
   orbitControls.rotateSpeed = 0.5;
   orbitControls.minDistance = 5;
   orbitControls.maxDistance = 30;
@@ -84,6 +84,7 @@ export function initAboutScene(canvas: HTMLCanvasElement) {
   const headerTitleEl = document.getElementById("header-title")!;
   headerTitleEl.style.opacity = "1";
   headerTitleEl.style.cursor = "pointer";
+  headerTitleEl.style.pointerEvents = "auto";
   headerTitleEl.addEventListener("click", () => {
     window.location.href = "/";
   });
