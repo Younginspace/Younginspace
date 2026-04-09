@@ -11,13 +11,17 @@
  */
 
 import { sql } from "drizzle-orm";
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import { esSystemAuthUser } from "../__generated__/sys_schema";
 
-// Example table — replace with your own schema:
-//
-// export const users = sqliteTable("users", {
-//   id: integer("id").primaryKey({ autoIncrement: true }),
-//   name: text("name").notNull(),
-//   email: text("email").notNull().unique(),
-//   created_at: text("created_at").notNull().default(sql`(current_timestamp)`),
-// });
+export const messages = sqliteTable("messages", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  user_id: text("user_id").notNull().references(() => esSystemAuthUser.id, { onDelete: "cascade" }),
+  user_name: text("user_name").notNull(),
+  content: text("content").notNull(),
+  visible: integer("visible").notNull().default(1),
+  created_at: text("created_at").notNull().default(sql`(current_timestamp)`),
+}, (table) => [
+  index("messages_user_id_idx").on(table.user_id),
+  index("messages_created_at_idx").on(table.created_at),
+]);
