@@ -398,6 +398,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
   }
 
   scrollController.onModeChange = (mode) => {
+    // About scene: always view mode, no travel mode
+    if (currentSceneIndex === ABOUT_SCENE_INDEX) return;
     if (mode === "view") enterViewMode();
     else exitViewMode();
   };
@@ -461,6 +463,21 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
       scrollController.isTransitioning = false;
       showAbout();
       updateSceneIndicator(ABOUT_SCENE_INDEX);
+
+      // About: auto-enter view mode (rotate only, no zoom), hide hints
+      orbitControls.target.set(0, 0, PLANET_POSITION.z);
+      orbitControls.enableZoom = false;
+      orbitControls.enabled = true;
+      orbitControls.update();
+      scrollController.mode = "view";
+      const scrollHint = document.getElementById("scroll-hint");
+      const spaceHint = document.getElementById("space-hint");
+      if (scrollHint) scrollHint.style.display = "none";
+      if (spaceHint) spaceHint.style.display = "none";
+
+      // Enable header title as home link
+      headerTitleEl.style.pointerEvents = "auto";
+      headerTitleEl.style.cursor = "pointer";
     });
   }
 

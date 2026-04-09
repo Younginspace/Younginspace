@@ -23,5 +23,11 @@ if (window.location.pathname === "/guestbook") {
       e.preventDefault();
       sceneApi.jumpToAbout();
     });
+
+    // Header title → home
+    const headerTitle = document.getElementById("header-title");
+    headerTitle?.addEventListener("click", () => {
+      window.location.href = "/";
+    });
   });
 }
