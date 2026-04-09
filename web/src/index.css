@@ -232,6 +232,155 @@ html, body {
   color: #81D4FA;
 }
 
+/* ---- About Shadow (black blob with blur, blends into space background) ---- */
+#about-shadow {
+  display: none;
+  opacity: 0;
+  position: fixed;
+  top: 50%;
+  left: 66%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 1000px;
+  background: #000;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* ---- About Overlay ---- */
+#about-overlay {
+  display: none;
+  opacity: 0;
+  position: fixed;
+  left: 55%;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  max-width: 420px;
+  max-height: 78vh;
+  overflow-y: auto;
+  pointer-events: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+
+#about-overlay::-webkit-scrollbar {
+  width: 3px;
+}
+#about-overlay::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.about-name {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 0 0 0.3rem 0;
+  letter-spacing: 0.06em;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.8), 0 0 40px rgba(179, 157, 219, 0.2);
+}
+
+.about-subtitle {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
+  color: rgba(179, 157, 219, 0.85);
+  letter-spacing: 0.1em;
+  margin: 0 0 1rem 0;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+}
+
+.about-bio {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0 0 1.2rem 0;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+}
+
+.about-divider {
+  width: 40px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(179, 157, 219, 0.5), transparent);
+  margin: 0 0 1.2rem 0;
+}
+
+.about-career {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-bottom: 1.2rem;
+}
+
+.career-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+}
+
+.career-year {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(179, 157, 219, 0.8);
+  min-width: 3rem;
+  text-shadow: 0 0 12px rgba(179, 157, 219, 0.25);
+}
+
+.career-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+}
+
+.about-traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.2rem;
+}
+
+.trait-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.3rem 0.6rem;
+  border: 1px solid rgba(179, 157, 219, 0.25);
+  border-radius: 20px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+
+.about-aspiration {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  font-style: italic;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 1rem 0;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+}
+
+.about-link {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #B39DDB;
+  text-decoration: none;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+  transition: color 0.2s;
+}
+
+.about-link:hover {
+  color: #CE93D8;
+}
+
 /* ---- Space Hint (view mode) ---- */
 #space-hint {
   display: none;
@@ -298,7 +447,9 @@ html, body {
 
 /* ---- Auth Modal ---- */
 #auth-modal {
-  display: none;
+  display: flex;
+  visibility: hidden;
+  pointer-events: none;
   opacity: 0;
   position: fixed;
   inset: 0;
@@ -485,6 +636,7 @@ html, body {
   text-transform: uppercase;
 }
 
+
 /* ---- Guestbook Floating Link ---- */
 #guestbook-fab {
   position: fixed;
@@ -536,7 +688,6 @@ html, body {
   margin: 0 0 1.5rem 0;
 }
 
-/* Tabs */
 #gb-tabs {
   display: flex;
   gap: 0.5rem;
@@ -567,7 +718,6 @@ html, body {
   color: #4FC3F7;
 }
 
-/* Message List */
 #gb-list,
 #gb-admin-list {
   margin-bottom: 1.5rem;
@@ -666,7 +816,6 @@ html, body {
   padding: 3rem 0;
 }
 
-/* Form */
 #gb-form {
   display: flex;
   flex-direction: column;

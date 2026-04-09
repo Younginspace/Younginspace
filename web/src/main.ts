@@ -5,14 +5,23 @@ if (window.location.pathname === "/guestbook") {
   import("./guestbook-page").then(({ initGuestbookPage }) => initGuestbookPage());
 } else {
   // 3D homepage
-  import("./scene").then(({ initScene }) => {
+  Promise.all([
+    import("./scene"),
+    import("./i18n"),
+    import("./auth-modal"),
+  ]).then(([{ initScene }, { initI18n }, { initAuthModal, setupSignInButton, updateHeaderForUser }]) => {
     const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-    initScene(canvas);
-  });
-  import("./i18n").then(({ initI18n }) => initI18n());
-  import("./auth-modal").then(({ initAuthModal, setupSignInButton, updateHeaderForUser }) => {
+    const sceneApi = initScene(canvas);
+    initI18n();
     initAuthModal();
     setupSignInButton();
     updateHeaderForUser();
+
+    // About nav link → jump to about scene
+    const aboutLink = document.querySelector<HTMLElement>('[data-i18n="about"]');
+    aboutLink?.addEventListener("click", (e) => {
+      e.preventDefault();
+      sceneApi.jumpToAbout();
+    });
   });
 }

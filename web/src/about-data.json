@@ -1,0 +1,28 @@
+{
+  "name": "Young",
+  "title": {
+    "en": "Strategic Architect  ·  INTJ",
+    "cn": "战略架构者  ·  INTJ"
+  },
+  "bio": {
+    "en": "From programmer to product manager, from ByteDance to AIGC — building AI-driven content creation tools with strategic thinking and technical intuition.",
+    "cn": "从程序员到产品经理，从字节跳动到 AIGC——用战略思维和技术直觉，构建 AI 驱动的下一代内容创作工具。"
+  },
+  "career": [
+    { "year": "2019", "label": { "en": "Startup Journey", "cn": "创业起步" } },
+    { "year": "2021", "label": { "en": "ByteDance · Tools", "cn": "字节跳动 · 工具" } },
+    { "year": "2022", "label": { "en": "Commercialization", "cn": "商业化" } },
+    { "year": "2023", "label": { "en": "Distribution", "cn": "分发策略" } },
+    { "year": "2025", "label": { "en": "Embracing AI", "cn": "全面 AI" } }
+  ],
+  "traits": [
+    { "label": { "en": "Strategic Thinking", "cn": "战略思维" } },
+    { "label": { "en": "Exploration Spirit", "cn": "探索精神" } },
+    { "label": { "en": "User-Oriented", "cn": "用户导向" } }
+  ],
+  "aspiration": {
+    "en": "To be closer to AIGC application scenarios and users, deeply understanding why products succeed or fail.",
+    "cn": "更贴近 AIGC 应用场景和用户，深刻理解产品成败的本质原因。"
+  },
+  "github": "https://github.com/Younginspace"
+}
