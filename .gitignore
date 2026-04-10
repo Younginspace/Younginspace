@@ -67,6 +67,7 @@ web/package-lock.json
 
 # Temp/reference files
 *.mp4
+!web/public/**/*.mp4
 *.glb
 !web/public/**/*.glb
 phmplanet.jpeg

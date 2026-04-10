@@ -1,5 +1,7 @@
 import { client } from "./lib/edgespark";
 import { t, initI18n, onLangChange } from "./i18n";
+import { initAuthModal, setupSignInButton, updateHeaderForUser } from "./auth-modal";
+import { initGuestbookBackground } from "./guestbook-bg";
 
 interface Message {
   id: number;
@@ -25,8 +27,17 @@ let publicTabBtn: HTMLElement;
 let adminTabBtn: HTMLElement;
 
 export async function initGuestbookPage() {
-  buildPageDOM();
+  // Video background (replaces Three.js scene)
+  initGuestbookBackground();
+
+  // Shared init
   initI18n();
+  initAuthModal();
+  setupSignInButton();
+  updateHeaderForUser();
+
+  // Setup DOM (shows overlay with boot text first, then reveals guestbook)
+  await setupPageDOM();
 
   // Check auth
   try {
@@ -42,35 +53,10 @@ export async function initGuestbookPage() {
     isAdminUser = false;
   }
 
-  // Bind refs
-  listEl = document.getElementById("gb-list")!;
-  adminListEl = document.getElementById("gb-admin-list")!;
-  adminPanelEl = document.getElementById("gb-admin-panel")!;
-  formEl = document.getElementById("gb-form")!;
-  inputEl = document.getElementById("gb-input") as HTMLTextAreaElement;
-  submitBtn = document.getElementById("gb-submit") as HTMLButtonElement;
-  loginHintEl = document.getElementById("gb-login-hint")!;
-  charCountEl = document.getElementById("gb-char-count")!;
-  publicTabBtn = document.getElementById("gb-tab-public")!;
-  adminTabBtn = document.getElementById("gb-tab-admin")!;
-
   // Show/hide based on auth
   formEl.style.display = isLoggedIn ? "flex" : "none";
   loginHintEl.style.display = isLoggedIn ? "none" : "block";
   adminTabBtn.style.display = isAdminUser ? "inline-block" : "none";
-
-  // Update logged-in header
-  if (isLoggedIn) {
-    try {
-      const session = await client.auth.getSession();
-      if (session?.data?.user) {
-        const nameEl = document.getElementById("gb-signin");
-        if (nameEl) {
-          nameEl.textContent = session.data.user.name || session.data.user.email || "User";
-        }
-      }
-    } catch { /* ignore */ }
-  }
 
   // Events
   submitBtn.addEventListener("click", handleSubmit);
@@ -91,33 +77,30 @@ export async function initGuestbookPage() {
   await loadPublicMessages();
 }
 
-function buildPageDOM() {
-  // Hide canvas and 3D overlays
-  document.getElementById("canvas")!.style.display = "none";
-  document.getElementById("warp-overlay")!.style.display = "none";
+function setupPageDOM(): Promise<void> {
+  // Hide main-page-only elements
   document.getElementById("title")!.style.display = "none";
-  document.getElementById("scroll-hint")!.style.display = "none";
-  document.getElementById("space-hint")!.style.display = "none";
-  document.getElementById("scene-indicator")!.style.display = "none";
   document.getElementById("project-info")!.style.display = "none";
+  document.getElementById("scroll-hint")!.style.display = "none";
+  document.getElementById("scene-indicator")!.style.display = "none";
   const fab = document.getElementById("guestbook-fab");
   if (fab) fab.style.display = "none";
 
-  // Show header title
-  const headerTitle = document.getElementById("header-title")!;
-  headerTitle.style.opacity = "1";
-  headerTitle.style.pointerEvents = "auto";
-  headerTitle.style.cursor = "pointer";
-  headerTitle.addEventListener("click", () => {
+  // Header title → back to home
+  const headerTitleEl = document.getElementById("header-title")!;
+  headerTitleEl.style.opacity = "1";
+  headerTitleEl.style.pointerEvents = "auto";
+  headerTitleEl.style.cursor = "pointer";
+  headerTitleEl.addEventListener("click", () => {
     window.location.href = "/";
   });
 
-  // Insert guestbook page content
-  const page = document.createElement("div");
-  page.id = "guestbook-page";
-  page.innerHTML = `
-    <div id="gb-container">
-      <h1 id="gb-title">${t("boardTitle")}</h1>
+  // Build overlay with boot text first, guestbook content hidden
+  const overlay = document.getElementById("guestbook-overlay")!;
+  overlay.innerHTML = `
+    <h2 class="gb-panel-title">${t("boardTitle")}</h2>
+    <div id="gb-boot-text" class="gb-boot-text"></div>
+    <div id="gb-content" style="display:none; opacity:0">
       <div id="gb-tabs">
         <button id="gb-tab-public" class="gb-tab active">${t("boardTabPublic")}</button>
         <button id="gb-tab-admin" class="gb-tab" style="display:none">${t("boardTabAdmin")}</button>
@@ -136,11 +119,86 @@ function buildPageDOM() {
       <div id="gb-login-hint" style="display:none">${t("boardLoginHint")}</div>
     </div>
   `;
-  document.body.appendChild(page);
+  overlay.style.display = "block";
+  overlay.style.opacity = "0";
+  requestAnimationFrame(() => {
+    overlay.style.transition = "opacity 0.6s ease";
+    overlay.style.opacity = "1";
+  });
+
+  // Run boot text inside overlay, then reveal guestbook content
+  return new Promise((resolve) => {
+    const bootEl = document.getElementById("gb-boot-text")!;
+    const contentEl = document.getElementById("gb-content")!;
+
+    const lines = [
+      "> INITIALIZING COMM SYSTEM...",
+      "> SCANNING FREQUENCIES...",
+      "> SIGNAL LOCK: SPACECRAFT YOUNG",
+      "> CONNECTION ESTABLISHED",
+    ];
+
+    // Start typing after overlay fades in
+    setTimeout(() => {
+      let lineIdx = 0;
+      let charIdx = 0;
+      let text = "";
+
+      function typeNext() {
+        if (lineIdx >= lines.length) {
+          // Boot complete → fade out boot text, reveal content
+          setTimeout(() => {
+            bootEl.style.transition = "opacity 0.4s ease";
+            bootEl.style.opacity = "0";
+            setTimeout(() => {
+              bootEl.remove();
+              contentEl.style.display = "block";
+              requestAnimationFrame(() => {
+                contentEl.style.transition = "opacity 0.5s ease";
+                contentEl.style.opacity = "1";
+              });
+              bindRefs();
+              resolve();
+            }, 400);
+          }, 500);
+          return;
+        }
+
+        const currentLine = lines[lineIdx];
+        if (charIdx < currentLine.length) {
+          text += currentLine[charIdx];
+          bootEl.textContent = text;
+          charIdx++;
+          setTimeout(typeNext, 25 + Math.random() * 25);
+        } else {
+          text += "\n";
+          bootEl.textContent = text;
+          lineIdx++;
+          charIdx = 0;
+          setTimeout(typeNext, 250);
+        }
+      }
+
+      typeNext();
+    }, 700);
+  });
+}
+
+function bindRefs() {
+  listEl = document.getElementById("gb-list")!;
+  adminListEl = document.getElementById("gb-admin-list")!;
+  adminPanelEl = document.getElementById("gb-admin-panel")!;
+  formEl = document.getElementById("gb-form")!;
+  inputEl = document.getElementById("gb-input") as HTMLTextAreaElement;
+  submitBtn = document.getElementById("gb-submit") as HTMLButtonElement;
+  loginHintEl = document.getElementById("gb-login-hint")!;
+  charCountEl = document.getElementById("gb-char-count")!;
+  publicTabBtn = document.getElementById("gb-tab-public")!;
+  adminTabBtn = document.getElementById("gb-tab-admin")!;
 }
 
 function updateLabels() {
-  const titleEl = document.getElementById("gb-title");
+  const titleEl = document.querySelector(".gb-panel-title");
   if (titleEl) titleEl.textContent = t("boardTitle");
   if (submitBtn) submitBtn.textContent = t("boardSend");
   if (inputEl) inputEl.placeholder = t("boardPlaceholder");
@@ -191,7 +249,7 @@ function renderMessages(messages: Message[], container: HTMLElement) {
         <span class="gb-msg-time">${formatTime(m.created_at)}</span>
       </div>
       <div class="gb-msg-content">${escapeHtml(m.content)}</div>
-    </div>`
+    </div>`,
     )
     .join("");
 }
@@ -219,7 +277,7 @@ function renderAdminMessages(messages: Message[]) {
           ${t("boardDelete")}
         </button>
       </div>
-    </div>`
+    </div>`,
     )
     .join("");
 
@@ -282,3 +340,4 @@ async function handleSubmit() {
     submitBtn.disabled = false;
   }
 }
+

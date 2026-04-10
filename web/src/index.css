@@ -662,36 +662,127 @@ html, body {
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* ---- Guestbook Standalone Page ---- */
-#guestbook-page {
+/* ---- Guestbook Video Background ---- */
+.guestbook-video-bg {
   position: fixed;
-  inset: 0;
-  z-index: 5;
-  background: #000;
-  overflow-y: auto;
-  display: flex;
-  justify-content: center;
-  padding: 6rem 1.5rem 3rem;
-}
-
-#gb-container {
+  top: 0;
+  left: 0;
   width: 100%;
-  max-width: 580px;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
 }
 
-#gb-title {
+/* ---- Guestbook Standalone Page — Amber CRT Terminal ---- */
+
+/* CRT Boot Text (inside overlay panel) */
+.gb-boot-text {
   font-family: 'Space Mono', monospace;
-  font-size: 1.4rem;
+  font-size: 0.8rem;
+  color: #FFB000;
+  text-shadow: 0 0 8px rgba(255, 176, 0, 0.5);
+  white-space: pre-line;
+  line-height: 1.8;
+  min-height: 8rem;
+  position: relative;
+  z-index: 3;
+}
+
+/* CRT Overlay Panel */
+#guestbook-overlay {
+  display: none;
+  opacity: 0;
+  position: fixed;
+  right: 6%;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 420px;
+  max-height: 80vh;
+  overflow-y: auto;
+  pointer-events: auto;
+  padding: 1.8rem 2rem;
+  background: rgba(20, 15, 5, 0.82);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 176, 0, 0.15);
+  border-radius: 4px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    inset 0 0 80px rgba(255, 176, 0, 0.02),
+    inset 0 0 0 1px rgba(255, 176, 0, 0.05);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 176, 0, 0.2) transparent;
+}
+
+/* CRT Scanlines overlay */
+#guestbook-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 2px,
+    rgba(0, 0, 0, 0.15) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+  border-radius: 4px;
+}
+
+/* CRT edge vignette */
+#guestbook-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  z-index: 2;
+  border-radius: 4px;
+}
+
+#guestbook-overlay::-webkit-scrollbar {
+  width: 3px;
+}
+#guestbook-overlay::-webkit-scrollbar-thumb {
+  background: rgba(255, 176, 0, 0.2);
+  border-radius: 3px;
+}
+
+/* CRT flicker */
+@keyframes crtFlicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.92; }
+  94% { opacity: 1; }
+}
+
+#guestbook-overlay {
+  animation: crtFlicker 4s infinite;
+}
+
+.gb-panel-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 1rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.95);
-  letter-spacing: 0.06em;
-  margin: 0 0 1.5rem 0;
+  color: #FFB000;
+  letter-spacing: 0.1em;
+  margin: 0 0 1.2rem 0;
+  text-shadow: 0 0 10px rgba(255, 176, 0, 0.4);
+  text-transform: uppercase;
+  position: relative;
+  z-index: 3;
 }
 
 #gb-tabs {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1.2rem;
+  position: relative;
+  z-index: 3;
 }
 
 .gb-tab {
@@ -699,33 +790,35 @@ html, body {
   font-size: 0.75rem;
   padding: 0.35rem 0.8rem;
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 176, 0, 0.15);
+  border-radius: 2px;
+  color: rgba(255, 176, 0, 0.45);
   cursor: pointer;
   transition: all 0.2s;
   letter-spacing: 0.05em;
 }
 
 .gb-tab:hover {
-  color: rgba(255, 255, 255, 0.8);
-  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 176, 0, 0.8);
+  border-color: rgba(255, 176, 0, 0.3);
 }
 
 .gb-tab.active {
-  background: rgba(79, 195, 247, 0.15);
-  border-color: rgba(79, 195, 247, 0.3);
-  color: #4FC3F7;
+  background: rgba(255, 176, 0, 0.1);
+  border-color: rgba(255, 176, 0, 0.35);
+  color: #FFB000;
 }
 
 #gb-list,
 #gb-admin-list {
   margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 3;
 }
 
 .gb-msg {
   padding: 0.9rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 176, 0, 0.06);
 }
 
 .gb-msg:last-child {
@@ -743,20 +836,21 @@ html, body {
   font-family: 'Space Mono', monospace;
   font-size: 0.8rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.85);
+  color: #FFB000;
   letter-spacing: 0.03em;
+  text-shadow: 0 0 6px rgba(255, 176, 0, 0.3);
 }
 
 .gb-msg-time {
   font-family: 'Space Mono', monospace;
   font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 176, 0, 0.3);
 }
 
 .gb-msg-status {
   font-family: 'Space Mono', monospace;
   font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 176, 0, 0.3);
   margin-left: auto;
 }
 
@@ -764,7 +858,7 @@ html, body {
   font-family: 'Space Mono', monospace;
   font-size: 0.85rem;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 176, 0, 0.65);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -777,6 +871,8 @@ html, body {
   display: flex;
   gap: 0.5rem;
   margin-top: 0.5rem;
+  position: relative;
+  z-index: 3;
 }
 
 .gb-action-btn {
@@ -784,17 +880,17 @@ html, body {
   font-size: 0.7rem;
   padding: 0.25rem 0.65rem;
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
-  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 176, 0, 0.12);
+  border-radius: 2px;
+  color: rgba(255, 176, 0, 0.5);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .gb-action-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.9);
-  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 176, 0, 0.08);
+  color: #FFB000;
+  border-color: rgba(255, 176, 0, 0.3);
 }
 
 .gb-action-delete {
@@ -811,15 +907,19 @@ html, body {
 .gb-empty {
   font-family: 'Space Mono', monospace;
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 176, 0, 0.3);
   text-align: center;
   padding: 3rem 0;
+  position: relative;
+  z-index: 3;
 }
 
 #gb-form {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  position: relative;
+  z-index: 3;
 }
 
 #gb-input {
@@ -829,21 +929,21 @@ html, body {
   font-size: 0.85rem;
   line-height: 1.5;
   padding: 0.7rem 0.8rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: #fff;
+  background: rgba(255, 176, 0, 0.04);
+  border: 1px solid rgba(255, 176, 0, 0.12);
+  border-radius: 2px;
+  color: #FFB000;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 #gb-input::placeholder {
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 176, 0, 0.2);
 }
 
 #gb-input:focus {
-  border-color: rgba(79, 195, 247, 0.5);
-  box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.12);
+  border-color: rgba(255, 176, 0, 0.5);
+  box-shadow: 0 0 0 2px rgba(255, 176, 0, 0.1);
 }
 
 #gb-form-footer {
@@ -855,7 +955,7 @@ html, body {
 #gb-char-count {
   font-family: 'Space Mono', monospace;
   font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 176, 0, 0.3);
 }
 
 #gb-submit {
@@ -863,30 +963,48 @@ html, body {
   font-size: 0.8rem;
   font-weight: 600;
   padding: 0.45rem 1.2rem;
-  background: rgba(79, 195, 247, 0.18);
-  border: 1px solid rgba(79, 195, 247, 0.35);
-  border-radius: 6px;
-  color: #4FC3F7;
+  background: rgba(255, 176, 0, 0.12);
+  border: 1px solid rgba(255, 176, 0, 0.3);
+  border-radius: 2px;
+  color: #FFB000;
   cursor: pointer;
   letter-spacing: 0.06em;
+  text-shadow: 0 0 8px rgba(255, 176, 0, 0.3);
   transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
 }
 
 #gb-submit:hover:not(:disabled) {
-  background: rgba(79, 195, 247, 0.28);
-  border-color: rgba(79, 195, 247, 0.55);
-  box-shadow: 0 0 24px rgba(79, 195, 247, 0.15);
+  background: rgba(255, 176, 0, 0.2);
+  border-color: rgba(255, 176, 0, 0.5);
+  box-shadow: 0 0 20px rgba(255, 176, 0, 0.12);
 }
 
 #gb-submit:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 #gb-login-hint {
   font-family: 'Space Mono', monospace;
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 176, 0, 0.35);
   text-align: center;
   padding: 1rem 0;
+  position: relative;
+  z-index: 3;
+}
+
+/* ---- Guestbook Mobile ---- */
+@media (max-width: 768px) {
+  #guestbook-overlay {
+    right: 0;
+    left: 0;
+    width: auto;
+    top: auto;
+    bottom: 0;
+    transform: none;
+    max-height: 70vh;
+    border-radius: 4px 4px 0 0;
+    padding: 1.2rem 1.4rem;
+  }
 }
