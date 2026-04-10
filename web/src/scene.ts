@@ -3,8 +3,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import gsap from "gsap";
 import { projects } from "./data";
 import { createCamera } from "./camera";
-import { createPlanetSystem, setupPlanet, hidePlanet, animatePlanets } from "./stars";
+import { createPlanetSystem, setupPlanet, hidePlanet, animatePlanets, preloadTexture } from "./stars";
 import { initProjectInfo, showProjectInfo, hideProjectInfo } from "./planet-text";
+import { aboutProject, initAbout, showAbout } from "./about";
 import { createStarfield, animateStarfield } from "./starfield";
 import { createNebula } from "./nebula";
 import { createSpaceship, updateSpaceship } from "./spaceship";
@@ -20,7 +21,11 @@ import {
   SHIP_START_SCALE,
 } from "./scene-layout";
 
-export function initScene(canvas: HTMLCanvasElement) {
+export interface SceneAPI {
+  jumpToAbout(): void;
+}
+
+export function initScene(canvas: HTMLCanvasElement): SceneAPI {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -54,6 +59,7 @@ export function initScene(canvas: HTMLCanvasElement) {
 
   // Planet system
   const planetSystem = createPlanetSystem(projects);
+  preloadTexture(planetSystem, aboutProject.texture);
   scene.add(planetSystem.sceneGroup);
 
   // Spaceship (camera child — same pose in ALL scenes)
@@ -64,14 +70,19 @@ export function initScene(canvas: HTMLCanvasElement) {
 
   // Project info overlay
   initProjectInfo();
+  initAbout();
 
   // --- DOM references ---
   const titleEl = document.getElementById("title")!;
   const headerTitleEl = document.getElementById("header-title")!;
   const warpOverlay = document.getElementById("warp-overlay")!;
 
+  // --- About shadow overlay (screen-space, rotation-proof) ---
+  const aboutShadow = document.getElementById("about-shadow")!;
+
   // --- State ---
-  let currentSceneIndex = -1; // -1 = start, 0..N-1 = projects
+  const ABOUT_SCENE_INDEX = projects.length; // scene after all projects
+  let currentSceneIndex = -1; // -1 = start, 0..N-1 = projects, N = about
   let useA = true;
   let titleShrunk = false;
   let viewModeAnimating = false;
@@ -89,7 +100,7 @@ export function initScene(canvas: HTMLCanvasElement) {
   hidePlanet(planetSystem.planetB);
 
   // --- Scroll controller ---
-  const totalScenes = projects.length + 1; // start + projects
+  const totalScenes = projects.length + 1; // start + projects (about is nav-only)
   const scrollController = createScrollController(totalScenes);
 
   // --- Title management ---
@@ -130,6 +141,8 @@ export function initScene(canvas: HTMLCanvasElement) {
 
   // --- Scene change handler ---
   function handleSceneChange(direction: 1 | -1) {
+    // Block scroll when on about scene
+    if (currentSceneIndex === ABOUT_SCENE_INDEX) return;
     const nextIndex = currentSceneIndex + direction;
     if (nextIndex < -1 || nextIndex >= projects.length) return;
     if (scrollController.isTransitioning) return;
@@ -219,31 +232,25 @@ export function initScene(canvas: HTMLCanvasElement) {
       return;
     }
 
-    // Normal project-to-project: horizontal flyby transition
-    const nextProjectIndex = nextIndex;
-    if (nextProjectIndex < 0 || nextProjectIndex >= projects.length) {
-      scrollController.isTransitioning = false;
-      return;
-    }
-
+    // Project-to-project flyby transition
     hideProjectInfo();
 
     const tl = createTransition({
       currentPlanet: getCurrentPlanet(),
       nextPlanet: getNextPlanet(),
       starfield,
-      nextProject: projects[nextProjectIndex],
+      nextProject: projects[nextIndex],
       setupPlanetFn: (planet, proj) => setupPlanet(planet, proj, planetSystem.textures),
       direction,
       canvas,
       warpOverlay,
       onComplete: () => {
-        currentSceneIndex = nextProjectIndex;
-        scrollController.currentScene = nextProjectIndex + 1;
+        currentSceneIndex = nextIndex;
+        scrollController.currentScene = nextIndex + 1;
         useA = !useA;
         scrollController.isTransitioning = false;
-        showProjectInfo(projects[nextProjectIndex]);
-        updateSceneIndicator(nextProjectIndex);
+        showProjectInfo(projects[nextIndex]);
+        updateSceneIndicator(nextIndex);
       },
     });
 
@@ -303,9 +310,10 @@ export function initScene(canvas: HTMLCanvasElement) {
         },
       });
     } else {
-      // Project page: planet is centered, seamless entry
+      // Project/about page: planet is centered, seamless entry
+      const isAbout = currentSceneIndex === ABOUT_SCENE_INDEX;
       orbitControls.target.set(0, 0, PLANET_POSITION.z);
-      orbitControls.enableZoom = true;
+      orbitControls.enableZoom = !isAbout;
       orbitControls.minDistance = 5;
       orbitControls.maxDistance = 30;
       orbitControls.enabled = true;
@@ -320,9 +328,6 @@ export function initScene(canvas: HTMLCanvasElement) {
     orbitControls.enabled = false;
 
     const isStartPage = currentSceneIndex < 0;
-
-    if (isStartPage) reattachShipToCamera();
-
     const startPos = camera.position.clone();
 
     const onDone = () => {
@@ -361,37 +366,120 @@ export function initScene(canvas: HTMLCanvasElement) {
         onComplete: onDone,
       });
     } else {
-      // Start page: linear interpolation (no planet nearby)
-      const lookDist = 5;
-      const dir = new THREE.Vector3();
-      camera.getWorldDirection(dir);
-      const startLook = dir.multiplyScalar(lookDist).add(startPos);
+      // Start page: arc interpolation around ship (same pattern as project page)
+      // Ship is fixed at center — camera only rotates + zooms around it
+      const orbitCenter = spaceship.group.position.clone();
+      const startOffset = startPos.clone().sub(orbitCenter);
+      const endOffset = new THREE.Vector3(0, 0, 0).sub(orbitCenter);
 
-      const proxy = {
-        px: startPos.x, py: startPos.y, pz: startPos.z,
-        lx: startLook.x, ly: startLook.y, lz: startLook.z,
-      };
+      const startSph = new THREE.Spherical().setFromVector3(startOffset);
+      const endSph = new THREE.Spherical().setFromVector3(endOffset);
 
+      const proxy = { t: 0 };
       gsap.to(proxy, {
-        px: 0, py: 0, pz: 0,
-        lx: 0, ly: 0, lz: -lookDist,
+        t: 1,
         duration: 0.6,
         ease: "power2.inOut",
         onUpdate() {
-          camera.position.set(proxy.px, proxy.py, proxy.pz);
-          camera.lookAt(proxy.lx, proxy.ly, proxy.lz);
+          const sph = new THREE.Spherical(
+            THREE.MathUtils.lerp(startSph.radius, endSph.radius, proxy.t),
+            THREE.MathUtils.lerp(startSph.phi, endSph.phi, proxy.t),
+            THREE.MathUtils.lerp(startSph.theta, endSph.theta, proxy.t),
+          );
+          camera.position.setFromSpherical(sph).add(orbitCenter);
+          camera.lookAt(orbitCenter);
         },
-        onComplete: onDone,
+        onComplete() {
+          reattachShipToCamera();
+          onDone();
+        },
       });
     }
   }
 
   scrollController.onModeChange = (mode) => {
+    // About scene: always view mode, no travel mode
+    if (currentSceneIndex === ABOUT_SCENE_INDEX) return;
     if (mode === "view") enterViewMode();
     else exitViewMode();
   };
 
   // View mode zoom is handled by OrbitControls (dolly zoom) for both start + project pages
+
+  // --- Jump to about (from nav link) ---
+  function jumpToAbout() {
+    if (currentSceneIndex === ABOUT_SCENE_INDEX) return;
+    if (scrollController.isTransitioning) return;
+    scrollController.isTransitioning = true;
+
+    // Hide current content
+    if (currentSceneIndex >= 0 && currentSceneIndex < projects.length) {
+      hideProjectInfo();
+    }
+
+    // Warp out
+    const blurProxy = { blur: 0 };
+    gsap.to(blurProxy, {
+      blur: 12,
+      duration: 0.25,
+      ease: "power2.in",
+      onUpdate() { canvas.style.filter = `blur(${blurProxy.blur}px)`; },
+    });
+    gsap.to(warpOverlay, { opacity: 0.6, duration: 0.25, ease: "power2.in" });
+
+    gsap.delayedCall(0.3, () => {
+      // Teleport: move ship if coming from start
+      if (currentSceneIndex === -1) {
+        shrinkTitle();
+        spaceship.group.position.copy(SHIP_POSITION);
+        if (spaceship.model) spaceship.model.scale.setScalar(SHIP_SCALE);
+      }
+
+      // Swap planets
+      hidePlanet(getCurrentPlanet());
+      hidePlanet(getNextPlanet());
+
+      setupPlanet(getCurrentPlanet(), aboutProject, planetSystem.textures);
+      getCurrentPlanet().group.position.copy(PLANET_POSITION);
+      getCurrentPlanet().group.visible = true;
+
+      // Screen-space shadow
+      aboutShadow.style.display = "block";
+      aboutShadow.style.opacity = "1";
+
+      // Warp in
+      gsap.to(blurProxy, {
+        blur: 0,
+        duration: 0.35,
+        ease: "power2.out",
+        onUpdate() {
+          canvas.style.filter = blurProxy.blur < 0.5 ? "none" : `blur(${blurProxy.blur}px)`;
+        },
+      });
+      gsap.to(warpOverlay, { opacity: 0, duration: 0.35, ease: "power2.out" });
+
+      currentSceneIndex = ABOUT_SCENE_INDEX;
+      scrollController.currentScene = ABOUT_SCENE_INDEX + 1;
+      scrollController.isTransitioning = false;
+      showAbout();
+      updateSceneIndicator(ABOUT_SCENE_INDEX);
+
+      // About: auto-enter view mode (rotate only, no zoom), hide hints
+      orbitControls.target.set(0, 0, PLANET_POSITION.z);
+      orbitControls.enableZoom = false;
+      orbitControls.enabled = true;
+      orbitControls.update();
+      scrollController.mode = "view";
+      const scrollHint = document.getElementById("scroll-hint");
+      const spaceHint = document.getElementById("space-hint");
+      if (scrollHint) scrollHint.style.display = "none";
+      if (spaceHint) spaceHint.style.display = "none";
+
+      // Enable header title as home link
+      headerTitleEl.style.pointerEvents = "auto";
+      headerTitleEl.style.cursor = "pointer";
+    });
+  }
 
   // --- Resize ---
   window.addEventListener("resize", () => {
@@ -422,4 +510,6 @@ export function initScene(canvas: HTMLCanvasElement) {
   }
 
   animate();
+
+  return { jumpToAbout };
 }

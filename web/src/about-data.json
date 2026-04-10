@@ -1,29 +1,28 @@
 {
   "name": "Young",
   "title": {
-    "en": "PM | creator | INTJ",
-    "cn": "产品经理 | 创作者 | INTJ"
+    "en": "Strategic Architect  ·  INTJ",
+    "cn": "战略架构者  ·  INTJ"
   },
   "bio": {
-    "en": "A curious PM & creator, using AI to make interesting products.",
-    "cn": "一个好奇的产品经理和创作者，用AI做有意思的产品。"
+    "en": "From programmer to product manager, from ByteDance to AIGC — building AI-driven content creation tools with strategic thinking and technical intuition.",
+    "cn": "从程序员到产品经理，从字节跳动到 AIGC——用战略思维和技术直觉，构建 AI 驱动的下一代内容创作工具。"
   },
   "career": [
-    { "year": "2019", "label": { "en": "Startup, video editing app", "cn": "创业公司，视频剪辑应用" } },
-    { "year": "2021", "label": { "en": "ByteDance, CapCut Desktop 0-1", "cn": "字节跳动 · CapCut桌面端0-1" } },
-    { "year": "2022", "label": { "en": "CapCut Commercialization 0-1", "cn": "CapCut全球商业化0-1" } },
-    { "year": "2023", "label": { "en": "CapCut Template Distribution & Growth", "cn": "CapCut分发策略与增长" } },
-    { "year": "2025", "label": { "en": "CapCut Video Agent", "cn": "CapCut视频agent" } },
-    { "year": "2025", "label": { "en": "Startup, build YouWare & EdgeSpark", "cn": "ai coding创业，做YouWare和EdgeSpark" } }
+    { "year": "2019", "label": { "en": "Startup Journey", "cn": "创业起步" } },
+    { "year": "2021", "label": { "en": "ByteDance · Tools", "cn": "字节跳动 · 工具" } },
+    { "year": "2022", "label": { "en": "Commercialization", "cn": "商业化" } },
+    { "year": "2023", "label": { "en": "Distribution", "cn": "分发策略" } },
+    { "year": "2025", "label": { "en": "Embracing AI", "cn": "全面 AI" } }
   ],
   "traits": [
-    { "label": { "en": "User-Oriented", "cn": "用户导向" } },
-    { "label": { "en": "Curiosity", "cn": "好奇心" } },
-    { "label": { "en": "Strategic Thinking", "cn": "策略思维" } }
+    { "label": { "en": "Strategic Thinking", "cn": "战略思维" } },
+    { "label": { "en": "Exploration Spirit", "cn": "探索精神" } },
+    { "label": { "en": "User-Oriented", "cn": "用户导向" } }
   ],
   "aspiration": {
-    "en": "Experience new technologies, create good things, help others.",
-    "cn": "感受新技术，创造好东西，帮助他人。"
+    "en": "To be closer to AIGC application scenarios and users, deeply understanding why products succeed or fail.",
+    "cn": "更贴近 AIGC 应用场景和用户，深刻理解产品成败的本质原因。"
   },
   "github": "https://github.com/Younginspace"
 }

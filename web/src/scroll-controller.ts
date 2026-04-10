@@ -35,25 +35,24 @@ export function createScrollController(totalScenes: number): ScrollController {
   const DEBOUNCE_MS = 150;
 
   // Scroll in travel mode → scene change
-  // macOS natural scrolling: swipe down = onUp (deltaY < 0) = go back
-  //                          swipe up   = onDown (deltaY > 0) = go forward
+  // Scroll down = next scene, scroll up = previous scene
   const observer = Observer.create({
     type: "wheel,touch",
     onDown() {
       if (state.mode !== "travel") return;
       const now = Date.now();
       if (state.isTransitioning || now - lastTriggerTime < DEBOUNCE_MS) return;
-      if (state.currentScene <= 0) return;
+      if (state.currentScene >= totalScenes - 1) return;
       lastTriggerTime = now;
-      state.onSceneChange?.(-1);
+      state.onSceneChange?.(1);
     },
     onUp() {
       if (state.mode !== "travel") return;
       const now = Date.now();
       if (state.isTransitioning || now - lastTriggerTime < DEBOUNCE_MS) return;
-      if (state.currentScene >= totalScenes - 1) return;
+      if (state.currentScene <= 0) return;
       lastTriggerTime = now;
-      state.onSceneChange?.(1);
+      state.onSceneChange?.(-1);
     },
     tolerance: 15,
     preventDefault: true,
