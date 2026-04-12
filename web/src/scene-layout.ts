@@ -25,5 +25,8 @@ export const SHIP_Y_ROTATION = Math.PI * 0.78;
 export const SHIP_START_POSITION = new THREE.Vector3(0, 0, -5);
 export const SHIP_START_SCALE = 0.09;
 
+// Ship: intro fly-in origin (off-screen right, slightly above)
+export const SHIP_INTRO_POSITION = new THREE.Vector3(-14, 2, -10);
+
 // Text shell
 export const TEXT_SHELL_RADIUS = PLANET_RADIUS * 1.02;

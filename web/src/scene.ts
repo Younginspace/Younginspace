@@ -19,6 +19,7 @@ import {
   SHIP_SCALE,
   SHIP_START_POSITION,
   SHIP_START_SCALE,
+  SHIP_INTRO_POSITION,
 } from "./scene-layout";
 
 export interface SceneAPI {
@@ -99,6 +100,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
   hidePlanet(planetSystem.planetA);
   hidePlanet(planetSystem.planetB);
 
+  // --- Intro: start ship off-screen ---
+  spaceship.group.position.copy(SHIP_INTRO_POSITION);
+
   // --- Scroll controller ---
   const totalScenes = projects.length + 1; // start + projects (about is nav-only)
   const scrollController = createScrollController(totalScenes);
@@ -114,7 +118,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
   function expandTitle() {
     if (!titleShrunk) return;
     titleShrunk = false;
-    titleEl.style.opacity = "";
+    titleEl.style.opacity = "0.9";
     headerTitleEl.style.opacity = "0";
   }
 
@@ -510,6 +514,47 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
   }
 
   animate();
+
+  // --- Intro fly-in animation ---
+  const scrollHintEl = document.getElementById("scroll-hint");
+  scrollController.isTransitioning = true; // block scroll during intro
+
+  const introTl = gsap.timeline({
+    onComplete() {
+      scrollController.isTransitioning = false;
+      // Start the breathing animation on the title after intro
+      titleEl.style.animation = "breathe 5s ease-in-out infinite";
+    },
+  });
+
+  // Ship flies from off-screen to start position (fast→slow)
+  introTl.to(spaceship.group.position, {
+    x: SHIP_START_POSITION.x,
+    y: SHIP_START_POSITION.y,
+    z: SHIP_START_POSITION.z,
+    duration: 2.4,
+    ease: "power3.out",
+  }, 0);
+
+  // Title fades in when ship is near its destination
+  introTl.to(titleEl, {
+    opacity: 0.9,
+    duration: 1.2,
+    ease: "power2.out",
+  }, 1.4);
+
+  // Scroll hint fades in after everything settles
+  if (scrollHintEl) {
+    introTl.to(scrollHintEl, {
+      opacity: 0.55,
+      duration: 0.8,
+      ease: "power2.out",
+      onComplete() {
+        scrollHintEl!.style.opacity = "";
+        scrollHintEl!.classList.add("intro-done");
+      },
+    }, 2.2);
+  }
 
   return { jumpToAbout };
 }
