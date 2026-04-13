@@ -206,6 +206,18 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
 
     scrollController.isTransitioning = true;
 
+    // Kill any in-flight tweens on the ship (e.g. residual intro tween) so new
+    // scene-change tweens own the ship position/rotation without conflict.
+    const shipTargets: object[] = [spaceship.group.position];
+    if (spaceship.model) {
+      shipTargets.push(
+        spaceship.model.scale,
+        spaceship.model.rotation,
+        spaceship.model.position,
+      );
+    }
+    gsap.killTweensOf(shipTargets);
+
     // Helper to animate ship to a given config
     const animateShip = (cfg: { position: THREE.Vector3; scale: number }, dur = 1.0) => {
       gsap.to(spaceship.group.position, {
@@ -246,6 +258,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
       p0.group.visible = true;
       p0Mat.opacity = 0;
       gsap.to(p0Mat, { opacity: 1, duration: 1.0, ease: "power2.out" });
+      // Project info fades in early while planet is still flying in (not at end)
+      gsap.delayedCall(0.5, () => showProjectInfo(projects[0]));
       gsap.to(p0.group.position, {
         x: PLANET_POSITION.x, y: PLANET_POSITION.y, z: PLANET_POSITION.z,
         duration: 1.2, ease: "power2.out",
@@ -253,7 +267,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
           currentSceneIndex = 0;
           scrollController.currentScene = 1;
           scrollController.isTransitioning = false;
-          showProjectInfo(projects[0]);
           updateSceneIndicator(0);
           spaceship.exhaust?.setIntensity(0.18);
           configureShipOrbit(); // pivot now planet
@@ -265,7 +278,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
     // FROM first project → back to start: hide all planets + ship returns
     if (currentSceneIndex === 0 && direction === -1) {
       hideProjectInfo();
-      expandTitle();
+      // Start pane text fades in LATER — let the planet/ship motion establish first
+      gsap.delayedCall(0.55, () => expandTitle());
       shipOrbit.disable(); // GSAP takes over
       spaceship.exhaust?.setIntensity(0.55);
       animateShip({ position: SHIP_START_POSITION, scale: SHIP_START_SCALE }, 0.8);
@@ -323,6 +337,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
     const outgoingPlanet = planetSystem.planets[currentSceneIndex];
     const capturedOutgoingIndex = currentSceneIndex;
 
+    // Next project's info fades in mid-transition, not after
+    gsap.delayedCall(0.6, () => showProjectInfo(projects[nextIndex]));
+
     const tl = createZoomTransition({
       outgoing: outgoingPlanet,
       incoming,
@@ -338,7 +355,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
         currentSceneIndex = nextIndex;
         scrollController.currentScene = nextIndex + 1;
         scrollController.isTransitioning = false;
-        showProjectInfo(projects[nextIndex]);
         updateSceneIndicator(nextIndex);
         spaceship.exhaust?.setIntensity(0.18);
         configureShipOrbit(); // re-anchor orbit to new project's planet
@@ -449,7 +465,12 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
   animate();
 
   // --- Intro fly-in ---
+  // Block scroll only during the first 1.0s — the most visually jumpy window
+  // (ship still far off-screen). After that, GSAP overrides handle interruptions.
   scrollController.isTransitioning = true;
+  setTimeout(() => {
+    scrollController.isTransitioning = false;
+  }, 1000);
 
   const tryBoostIntro = () => {
     if (spaceship.exhaust) {
@@ -462,7 +483,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
 
   const introTl = gsap.timeline({
     onComplete() {
-      scrollController.isTransitioning = false;
       spaceship.exhaust?.setIntensity(0.18);
       titleEl.style.animation = "breathe 5s ease-in-out infinite";
     },
