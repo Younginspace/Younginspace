@@ -6,7 +6,7 @@
     <title>Younginspace</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
   </head>
   <body>
     <canvas id="canvas"></canvas>
@@ -27,12 +27,19 @@
       </nav>
     </header>
 
-    <h1 id="title">YOUNGINSPACE</h1>
+    <div id="start-pane">
+      <h1 id="title" data-i18n="startTitle">A Journey Through Space</h1>
+      <p id="start-body" data-i18n="startBody">Each planet is a story I built.
+Scroll to Explore with me.</p>
+    </div>
 
     <div id="project-info">
       <h2 id="project-title"></h2>
       <p id="project-desc"></p>
-      <a id="project-link" href="#" target="_blank" rel="noopener noreferrer">GitHub &rarr;</a>
+      <div id="project-links">
+        <a id="project-live-link" href="#" target="_blank" rel="noopener noreferrer"></a>
+        <a id="project-link" href="#" target="_blank" rel="noopener noreferrer">GitHub &rarr;</a>
+      </div>
     </div>
 
     <div id="about-shadow"></div>
@@ -40,7 +47,6 @@
 
     <div id="guestbook-overlay"></div>
 
-    <div id="scroll-hint" data-i18n="scrollHint">Scroll to explore</div>
     <div id="space-hint" data-i18n="spaceHint">Press space to continue</div>
 
     <div id="scene-indicator"></div>

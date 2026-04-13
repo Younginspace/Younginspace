@@ -58,32 +58,8 @@ export function createScrollController(totalScenes: number): ScrollController {
     preventDefault: true,
   });
 
-  // Mouse drag → enter view mode
-  let isDragging = false;
-  const canvas = document.getElementById("canvas")!;
-
-  canvas.addEventListener("pointerdown", (e) => {
-    if (e.button === 0 && state.mode === "travel" && !state.isTransitioning) {
-      isDragging = true;
-    }
-  });
-  canvas.addEventListener("pointermove", () => {
-    if (isDragging && state.mode === "travel") {
-      state.setMode("view");
-      isDragging = false;
-    }
-  });
-  canvas.addEventListener("pointerup", () => {
-    isDragging = false;
-  });
-
-  // Space / Escape → return to travel mode
-  window.addEventListener("keydown", (e) => {
-    if ((e.code === "Space" || e.code === "Escape") && state.mode === "view") {
-      e.preventDefault();
-      state.setMode("travel");
-    }
-  });
+  // (Drag-to-view-mode trigger removed — view mode is now only used by the about scene,
+  //  which sets it programmatically via state.setMode("view") inside jumpToAbout.)
 
   function updateHints() {
     const scrollHint = document.getElementById("scroll-hint");
