@@ -51,10 +51,12 @@ html, body {
   color: #fff;
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
   white-space: nowrap;
-  opacity: 0;
-  transition: opacity 0.8s ease;
-  pointer-events: none;
+  opacity: 0.95;
+  transition: opacity 0.4s ease;
+  pointer-events: auto;
+  cursor: pointer;
 }
+#header-title:hover { opacity: 1; }
 
 .nav-link {
   font-family: 'Space Mono', monospace;
@@ -132,27 +134,50 @@ html, body {
   color: #fff;
 }
 
-#title {
+/* Start scene: right column with title + body + scroll hint */
+#start-pane {
   position: fixed;
-  top: 12%;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 10%;
+  top: 50%;
+  transform: translateY(-50%);
   z-index: 10;
-  font-family: 'Cinzel Decorative', serif;
-  font-size: 5rem;
-  font-weight: 900;
-  letter-spacing: 0.15em;
-  color: #fff;
-  text-shadow:
-    0 0 30px rgba(255, 255, 255, 0.5),
-    0 0 80px rgba(200, 220, 255, 0.15),
-    0 2px 4px rgba(0, 0, 0, 0.8);
-  opacity: 0.9;
-  transition: opacity 0.8s ease;
-  animation: breathe 5s ease-in-out infinite;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.6rem;
+  text-align: left;
   pointer-events: none;
   user-select: none;
+  max-width: 38vw;
+}
+
+#title {
+  margin: 0;
+  font-family: 'Space Mono', monospace;
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+  text-shadow:
+    0 0 24px rgba(255, 255, 255, 0.45),
+    0 0 60px rgba(180, 220, 255, 0.18),
+    0 2px 4px rgba(0, 0, 0, 0.8);
+  opacity: 0;
+  transition: opacity 0.6s ease;
   white-space: nowrap;
+  line-height: 1.1;
+}
+
+#start-body {
+  margin: 0;
+  font-family: 'Space Mono', monospace;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.72);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  transition: opacity 1.0s ease;
+  white-space: pre-line; /* render \n in i18n strings as line breaks */
 }
 
 @keyframes breathe {
@@ -190,7 +215,7 @@ html, body {
   display: none;
   opacity: 0;
   position: fixed;
-  left: 55%;
+  left: 22%;
   top: 50%;
   transform: translateY(-50%);
   z-index: 10;
@@ -217,7 +242,15 @@ html, body {
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
 }
 
-#project-link {
+#project-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  align-items: flex-start;
+}
+
+#project-link,
+#project-live-link {
   font-family: 'Space Mono', monospace;
   font-size: 0.85rem;
   font-weight: 700;
@@ -225,11 +258,14 @@ html, body {
   text-decoration: none;
   pointer-events: auto;
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
-  transition: color 0.2s;
+  transition: opacity 0.2s;
+  opacity: 0.85;
 }
 
-#project-link:hover {
-  color: #81D4FA;
+#project-link:hover,
+#project-live-link:hover {
+  opacity: 1;
+  text-decoration: underline;
 }
 
 /* ---- About Shadow (black blob with blur, blends into space background) ---- */
@@ -276,7 +312,7 @@ html, body {
 }
 
 .about-name {
-  font-family: 'Cinzel Decorative', serif;
+  font-family: 'Space Mono', monospace;
   font-size: 2.4rem;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.95);
@@ -424,25 +460,6 @@ html, body {
 }
 
 /* ---- Scroll Hint ---- */
-#scroll-hint {
-  position: fixed;
-  bottom: 8%;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  font-family: 'Space Mono', monospace;
-  font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.55);
-  letter-spacing: 0.1em;
-  animation: scrollHintPulse 2.5s ease-in-out infinite;
-  pointer-events: none;
-  user-select: none;
-}
-
-@keyframes scrollHintPulse {
-  0%, 100% { opacity: 0.25; transform: translateX(-50%) translateY(0); }
-  50% { opacity: 0.55; transform: translateX(-50%) translateY(-6px); }
-}
 
 
 /* ---- Auth Modal ---- */

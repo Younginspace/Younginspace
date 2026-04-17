@@ -22,6 +22,10 @@ const vertexShader = `
 const fragmentShader = `
   uniform float iTime;
   uniform vec2 iResolution;
+  uniform float uIntensity;  // global brightness multiplier (1.0 = default)
+  uniform float uWarmth;     // amber tint strength (1.0 = default)
+  uniform float uCoreGlow;   // ambient core strength (1.0 = default)
+  uniform float uLift;       // deep-space color lift (1.0 = default)
   varying vec2 vUv;
 
   #define iterations 17
@@ -80,29 +84,44 @@ const fragmentShader = `
     v = mix(vec3(length(v)), v, saturation);
     v *= 0.01 * 0.4;
 
-    // warm color grade: shift toward dark amber/orange
-    // tint the nebula with warm hues — more red/orange, less blue
-    vec3 warmTint = vec3(1.15, 0.9, 0.65); // push R up, B down
-    v *= warmTint;
+    // Soft-clamp bright hot spots — exponential tonemap rolls off highlights
+    // while preserving mid + dark tones, eliminating "starburst" pop artifacts.
+    v = vec3(1.0) - exp(-v * 2.2);
 
-    // add subtle warm radial glow from center
+    // Retro dust nebula: warm sepia-amber field with dusty variation.
+    // Key: muted/dim warm tones so the bright white-hot exhaust core still pops.
+    vec2 q = vUv * 2.0;
+    float dustVar = sin(q.x * 2.6 + iTime * 0.03) * cos(q.y * 2.2 - iTime * 0.035);
+    float dustMix = 0.5 + 0.5 * dustVar;
+
+    vec3 ochreTint = vec3(1.00, 0.61, 0.26) * uWarmth;
+    vec3 rustTint  = vec3(0.85, 0.38, 0.15) * uWarmth;
+    vec3 nebTint = mix(rustTint, ochreTint, dustMix);
+    v *= nebTint;
+
+    // Radial glow: moderate warm ochre core, dim sienna edge
     float vignette = length(vUv - 0.5) * 1.4;
-    // dark amber fog in mid-range, fading to deep blue at edges
-    vec3 ambientWarm = vec3(0.12, 0.06, 0.02) * smoothstep(0.8, 0.0, vignette) * 0.35;
-    vec3 ambientCool = vec3(0.02, 0.03, 0.06) * smoothstep(0.0, 1.0, vignette) * 0.2;
-    v += ambientWarm + ambientCool;
+    vec3 ambientCore = vec3(0.15, 0.075, 0.022) * smoothstep(0.9, 0.0, vignette) * 0.50 * uCoreGlow;
+    vec3 ambientEdge = vec3(0.035, 0.015, 0.006) * smoothstep(0.0, 1.0, vignette) * 0.38;
+    v += ambientCore + ambientEdge;
 
-    // slight overall lift so deep space isn't pure black
-    v += vec3(0.012, 0.008, 0.005);
+    // Moderate sepia lift (tweakable)
+    v += vec3(0.016, 0.008, 0.003) * uLift;
+
+    // Global intensity applied last
+    v *= uIntensity;
 
     gl_FragColor = vec4(v, 1.0);
   }
 `;
 
-export function createNebula(): {
+export interface Nebula {
   mesh: THREE.Mesh;
+  material: THREE.ShaderMaterial;
   update: (time: number) => void;
-} {
+}
+
+export function createNebula(): Nebula {
   const geometry = new THREE.PlaneGeometry(2, 2);
   const material = new THREE.ShaderMaterial({
     vertexShader,
@@ -112,6 +131,10 @@ export function createNebula(): {
       iResolution: {
         value: new THREE.Vector2(window.innerWidth, window.innerHeight),
       },
+      uIntensity: { value: 0.74 },
+      uWarmth:    { value: 1.42 },
+      uCoreGlow:  { value: 0.34 },
+      uLift:      { value: 0.94 },
     },
     depthWrite: false,
     depthTest: false,
@@ -132,6 +155,7 @@ export function createNebula(): {
 
   return {
     mesh,
+    material,
     update(time: number) {
       material.uniforms.iTime.value = time;
     },

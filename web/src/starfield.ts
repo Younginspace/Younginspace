@@ -31,7 +31,13 @@ const warpFragmentShader = `
     float aspect = 1.0 + vStretch * 6.0;
     float dist = length(vec2(p.x * aspect, p.y));
     float a = smoothstep(0.5, 0.05, dist) * vAlpha * (0.4 + vStretch * 0.6);
-    vec3 color = mix(vec3(0.8, 0.82, 0.9), vec3(0.9, 0.95, 1.0), vStretch);
+    // Plan B: amber bg → cool white-blue stars for complementary pop
+    float starHue = fract(vAlpha * 7.31);
+    vec3 hotWhite  = vec3(0.98, 0.99, 1.00);
+    vec3 coolBlue  = vec3(0.75, 0.88, 1.00);
+    vec3 idleColor = mix(hotWhite, coolBlue, starHue * 0.5);
+    vec3 warpColor = vec3(0.85, 0.95, 1.00); // cool streaks during warp
+    vec3 color = mix(idleColor, warpColor, vStretch);
     gl_FragColor = vec4(color, a);
   }
 `;

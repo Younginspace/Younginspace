@@ -8,6 +8,16 @@ const translations: Record<string, Record<string, string>> = {
     scrollHint: "Scroll to explore",
     spaceHint: "Press space to continue",
     cardLink: "GitHub →",
+    startTitle: "A Journey Through Space",
+    startBody: "Each planet is a story I built.\nScroll to Explore with me.",
+    wipSuffix: "WIP",
+    loadError: "Failed to load",
+    statusVisible: "visible",
+    statusHidden: "hidden",
+    bootLine1: "> INITIALIZING COMM SYSTEM...",
+    bootLine2: "> SCANNING FREQUENCIES...",
+    bootLine3: "> SIGNAL LOCK: SPACECRAFT YOUNG",
+    bootLine4: "> CONNECTION ESTABLISHED",
     boardTitle: "> MESSAGE TO SPACE",
     boardSend: "TRANSMIT",
     boardPlaceholder: "> enter message...",
@@ -29,6 +39,16 @@ const translations: Record<string, Record<string, string>> = {
     scrollHint: "滚动探索",
     spaceHint: "按空格键继续",
     cardLink: "GitHub →",
+    startTitle: "穿越星海的旅程",
+    startBody: "每颗星球，都是我写下的故事。\n滚动鼠标，与我一同探索。",
+    wipSuffix: "进行中",
+    loadError: "加载失败",
+    statusVisible: "可见",
+    statusHidden: "隐藏",
+    bootLine1: "> 通讯系统启动中...",
+    bootLine2: "> 正在扫描频段...",
+    bootLine3: "> 信号锁定：YOUNG 号飞船",
+    bootLine4: "> 连接已建立",
     boardTitle: "> MESSAGE TO SPACE",
     boardSend: "发射",
     boardPlaceholder: "> 输入信号内容...",
@@ -73,13 +93,9 @@ export function initI18n() {
 function applyTranslations() {
   const tr = translations[currentLang];
 
-  // nav links & other elements with data-i18n
+  // All elements with data-i18n
   document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((el) => {
     const key = el.dataset.i18n!;
     if (tr[key]) el.textContent = tr[key];
   });
-
-  // back button
-  const backBtn = document.getElementById("back-btn");
-  if (backBtn) backBtn.textContent = tr.back;
 }

@@ -3,22 +3,39 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import gsap from "gsap";
 import { projects } from "./data";
 import { createCamera } from "./camera";
-import { createPlanetSystem, setupPlanet, hidePlanet, animatePlanets, preloadTexture } from "./stars";
+import { createDebugPanel } from "./debug-panel";
+import {
+  createPlanetSystem,
+  setupPlanet,
+  hidePlanet,
+  animatePlanets,
+  preloadTexture,
+} from "./stars";
 import { initProjectInfo, showProjectInfo, hideProjectInfo } from "./planet-text";
 import { aboutProject, initAbout, showAbout } from "./about";
 import { createStarfield, animateStarfield } from "./starfield";
 import { createNebula } from "./nebula";
 import { createSpaceship, updateSpaceship } from "./spaceship";
 import { createScrollController } from "./scroll-controller";
-import { createTransition } from "./scene-transition";
+import { createZoomTransition } from "./scene-transition";
+import { createShipCursorOrbit } from "./cursor-parallax";
 import {
   PLANET_POSITION,
-  PLANET_OFFSCREEN_RIGHT,
-  CAMERA_FOV,
+  PLANET_LEFT_EXIT,
   SHIP_POSITION,
   SHIP_SCALE,
   SHIP_START_POSITION,
   SHIP_START_SCALE,
+  SHIP_START_X_ROTATION,
+  SHIP_START_Y_ROTATION,
+  SHIP_START_Z_ROTATION,
+  SHIP_START_MODEL_OFFSET,
+  SHIP_X_ROTATION,
+  SHIP_Y_ROTATION,
+  SHIP_Z_ROTATION,
+  SHIP_INTRO_POSITION,
+  getShipConfig,
+  getPlanetOrbitPos,
 } from "./scene-layout";
 
 export interface SceneAPI {
@@ -40,14 +57,32 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
   const nebula = createNebula();
   nebulaScene.add(nebula.mesh);
 
+  // Debug mode ?debug=nebula — live-tune nebula uniforms via sliders
+  const debugParams = new URLSearchParams(window.location.search);
+  if (debugParams.get("debug") === "nebula") {
+    const u = nebula.material.uniforms;
+    createDebugPanel({
+      title: "Nebula",
+      sliders: [
+        { label: "Intensity", min: 0, max: 2, step: 0.01,
+          get: () => u.uIntensity.value, set: (v) => { u.uIntensity.value = v; } },
+        { label: "Warmth", min: 0, max: 2, step: 0.01,
+          get: () => u.uWarmth.value, set: (v) => { u.uWarmth.value = v; } },
+        { label: "Core Glow", min: 0, max: 2, step: 0.01,
+          get: () => u.uCoreGlow.value, set: (v) => { u.uCoreGlow.value = v; } },
+        { label: "Lift", min: 0, max: 2, step: 0.01,
+          get: () => u.uLift.value, set: (v) => { u.uLift.value = v; } },
+      ],
+    });
+  }
+
   // --- Main 3D scene ---
   const scene = new THREE.Scene();
   const camera = createCamera();
 
-  // OrbitControls for view mode
   const orbitControls = new OrbitControls(camera, canvas);
-  orbitControls.enableDamping = true;
-  orbitControls.dampingFactor = 0.08;
+  // No damping — rotation stops the moment the user releases the mouse
+  orbitControls.enableDamping = false;
   orbitControls.enabled = false;
   orbitControls.enablePan = false;
   orbitControls.enableZoom = false;
@@ -57,12 +92,15 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
   const starfield = createStarfield();
   scene.add(starfield);
 
-  // Planet system
+  // Planet system — orbit layout (4 project planets along Z-axis, 30° right)
   const planetSystem = createPlanetSystem(projects);
   preloadTexture(planetSystem, aboutProject.texture);
-  scene.add(planetSystem.sceneGroup);
+  scene.add(planetSystem.orbitGroup);
+  scene.add(planetSystem.aboutRoot);
+  // Start state: hide all project planets (they appear one at a time on scroll)
+  for (const p of planetSystem.planets) p.group.visible = false;
 
-  // Spaceship (camera child — same pose in ALL scenes)
+  // Spaceship (camera child)
   const spaceship = createSpaceship();
   camera.add(spaceship.group);
   camera.add(spaceship.lights);
@@ -74,48 +112,69 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
 
   // --- DOM references ---
   const titleEl = document.getElementById("title")!;
-  const headerTitleEl = document.getElementById("header-title")!;
-  const warpOverlay = document.getElementById("warp-overlay")!;
+  const startPaneEl = document.getElementById("start-pane")!;
+  void startPaneEl; // referenced via getElementById elsewhere, kept for future use
 
-  // --- About shadow overlay (screen-space, rotation-proof) ---
+  // Ship cursor orbit — pivot depends on scene (front-of-nose for start, planet for projects)
+  const shipOrbit = createShipCursorOrbit({
+    shipGroup: spaceship.group,
+    basePosition: SHIP_START_POSITION, // overridden by configureShipOrbit() per scene
+    pivotOffset: new THREE.Vector3(),
+    maxAngle: Math.PI / 4, // ±45°
+    damping: 0.05,
+  });
+
+  /** Set shipOrbit's base + pivot + angle for the currently active scene, then enable. */
+  function configureShipOrbit() {
+    if (currentSceneIndex < 0) {
+      // Start scene: ±45°, pivot 2 units in front of the ship's nose
+      const noseDir = new THREE.Vector3(0, 0, 1).applyEuler(
+        new THREE.Euler(SHIP_START_X_ROTATION, SHIP_START_Y_ROTATION, SHIP_START_Z_ROTATION, "XYZ"),
+      );
+      shipOrbit.setMaxAngle(Math.PI / 4);
+      shipOrbit.setBase(SHIP_START_POSITION, noseDir.multiplyScalar(2.0));
+      shipOrbit.enable();
+    } else if (currentSceneIndex < projects.length) {
+      // Project scene: ±15° (1/3 of start scene), pivot is the planet
+      // — planet pivot is far away (~8 units), so 45° would swing the ship off-screen
+      const cfg = getShipConfig(projects[currentSceneIndex].id);
+      const pivotOffset = new THREE.Vector3().subVectors(PLANET_POSITION, cfg.position);
+      shipOrbit.setMaxAngle(Math.PI / 12);
+      shipOrbit.setBase(cfg.position, pivotOffset);
+      shipOrbit.enable();
+    }
+    // About scene: no orbit (user uses OrbitControls there)
+  }
+  const warpOverlay = document.getElementById("warp-overlay")!;
   const aboutShadow = document.getElementById("about-shadow")!;
 
   // --- State ---
-  const ABOUT_SCENE_INDEX = projects.length; // scene after all projects
+  const ABOUT_SCENE_INDEX = projects.length;
   let currentSceneIndex = -1; // -1 = start, 0..N-1 = projects, N = about
-  let useA = true;
   let titleShrunk = false;
-  let viewModeAnimating = false;
-  let shipDetached = false;
 
-  function getCurrentPlanet() {
-    return useA ? planetSystem.planetA : planetSystem.planetB;
-  }
-  function getNextPlanet() {
-    return useA ? planetSystem.planetB : planetSystem.planetA;
-  }
+  // Initial orbit setup now that currentSceneIndex is declared
+  configureShipOrbit();
 
-  // Start: no planet visible
-  hidePlanet(planetSystem.planetA);
-  hidePlanet(planetSystem.planetB);
+  // --- Intro: ship off-screen ---
+  spaceship.group.position.copy(SHIP_INTRO_POSITION);
 
   // --- Scroll controller ---
-  const totalScenes = projects.length + 1; // start + projects (about is nav-only)
+  const totalScenes = projects.length + 1; // start + projects
   const scrollController = createScrollController(totalScenes);
 
   // --- Title management ---
   function shrinkTitle() {
     if (titleShrunk) return;
     titleShrunk = true;
-    titleEl.style.opacity = "0";
-    headerTitleEl.style.opacity = "1";
+    startPaneEl.style.transition = "opacity 0.6s ease";
+    startPaneEl.style.opacity = "0";
   }
-
   function expandTitle() {
     if (!titleShrunk) return;
     titleShrunk = false;
-    titleEl.style.opacity = "";
-    headerTitleEl.style.opacity = "0";
+    startPaneEl.style.transition = "opacity 0.8s ease";
+    startPaneEl.style.opacity = "1";
   }
 
   // --- Scene indicator dots ---
@@ -130,7 +189,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
       indicatorEl.appendChild(dot);
     }
   }
-
   function updateSceneIndicator(projectIndex: number) {
     const dots = document.querySelectorAll(".scene-dot");
     const activeIndex = projectIndex + 1;
@@ -141,7 +199,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
 
   // --- Scene change handler ---
   function handleSceneChange(direction: 1 | -1) {
-    // Block scroll when on about scene
     if (currentSceneIndex === ABOUT_SCENE_INDEX) return;
     const nextIndex = currentSceneIndex + direction;
     if (nextIndex < -1 || nextIndex >= projects.length) return;
@@ -149,275 +206,180 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
 
     scrollController.isTransitioning = true;
 
-    // FROM start → first project: ship moves left + shrinks, planet slides in
-    if (currentSceneIndex === -1 && direction === 1) {
-      shrinkTitle();
+    // Kill any in-flight tweens on the ship (e.g. residual intro tween) so new
+    // scene-change tweens own the ship position/rotation without conflict.
+    const shipTargets: object[] = [spaceship.group.position];
+    if (spaceship.model) {
+      shipTargets.push(
+        spaceship.model.scale,
+        spaceship.model.rotation,
+        spaceship.model.position,
+      );
+    }
+    gsap.killTweensOf(shipTargets);
 
-      // Animate ship from center to left side
+    // Helper to animate ship to a given config
+    const animateShip = (cfg: { position: THREE.Vector3; scale: number }, dur = 1.0) => {
       gsap.to(spaceship.group.position, {
-        x: SHIP_POSITION.x,
-        y: SHIP_POSITION.y,
-        z: SHIP_POSITION.z,
-        duration: 1.0,
-        ease: "power2.inOut",
+        x: cfg.position.x, y: cfg.position.y, z: cfg.position.z,
+        duration: dur, ease: "power2.inOut",
       });
       if (spaceship.model) {
         gsap.to(spaceship.model.scale, {
-          x: SHIP_SCALE, y: SHIP_SCALE, z: SHIP_SCALE,
-          duration: 1.0,
-          ease: "power2.inOut",
+          x: cfg.scale, y: cfg.scale, z: cfg.scale,
+          duration: dur, ease: "power2.inOut",
+        });
+      }
+    };
+
+    // FROM start → first project: only planet[0] visible, entering from LEFT_EXIT
+    if (currentSceneIndex === -1 && direction === 1) {
+      shrinkTitle();
+      shipOrbit.disable(); // GSAP takes over ship position
+      spaceship.exhaust?.setIntensity(0.55);
+      animateShip(getShipConfig(projects[0].id));
+      if (spaceship.model) {
+        gsap.to(spaceship.model.rotation, {
+          x: SHIP_X_ROTATION, y: SHIP_Y_ROTATION, z: SHIP_Z_ROTATION,
+          duration: 1.0, ease: "power2.inOut",
+        });
+        // Remove start-scene model offset (return to pivot-centered)
+        gsap.to(spaceship.model.position, {
+          x: 0, y: 0, z: 0,
+          duration: 1.0, ease: "power2.inOut",
         });
       }
 
-      // Planet slides in from right
-      setupPlanet(getCurrentPlanet(), projects[0], planetSystem.textures);
-      getCurrentPlanet().group.position.set(
-        PLANET_OFFSCREEN_RIGHT,
-        PLANET_POSITION.y,
-        PLANET_POSITION.z,
-      );
-      getCurrentPlanet().group.visible = true;
-
-      gsap.to(getCurrentPlanet().group.position, {
-        x: PLANET_POSITION.x,
-        y: PLANET_POSITION.y,
-        z: PLANET_POSITION.z,
-        duration: 1.0,
-        ease: "power2.out",
+      // Hide everything, then position + show only planet[0] with opacity fade-in
+      for (const p of planetSystem.planets) p.group.visible = false;
+      const p0 = planetSystem.planets[0];
+      const p0Mat = p0.sphere.material as THREE.MeshStandardMaterial;
+      p0.group.position.copy(PLANET_LEFT_EXIT);
+      p0.group.visible = true;
+      p0Mat.opacity = 0;
+      gsap.to(p0Mat, { opacity: 1, duration: 1.0, ease: "power2.out" });
+      // Project info fades in early while planet is still flying in (not at end)
+      gsap.delayedCall(0.5, () => showProjectInfo(projects[0]));
+      gsap.to(p0.group.position, {
+        x: PLANET_POSITION.x, y: PLANET_POSITION.y, z: PLANET_POSITION.z,
+        duration: 1.2, ease: "power2.out",
         onComplete: () => {
           currentSceneIndex = 0;
           scrollController.currentScene = 1;
           scrollController.isTransitioning = false;
-          showProjectInfo(projects[0]);
           updateSceneIndicator(0);
+          spaceship.exhaust?.setIntensity(0.18);
+          configureShipOrbit(); // pivot now planet
         },
       });
       return;
     }
 
-    // FROM first project → back to start: ship returns to center, planet slides out
+    // FROM first project → back to start: hide all planets + ship returns
     if (currentSceneIndex === 0 && direction === -1) {
       hideProjectInfo();
-      expandTitle();
-
-      // Ship back to center + bigger
-      gsap.to(spaceship.group.position, {
-        x: SHIP_START_POSITION.x,
-        y: SHIP_START_POSITION.y,
-        z: SHIP_START_POSITION.z,
-        duration: 0.8,
-        ease: "power2.inOut",
-      });
+      // Start pane text fades in LATER — let the planet/ship motion establish first
+      gsap.delayedCall(0.55, () => expandTitle());
+      shipOrbit.disable(); // GSAP takes over
+      spaceship.exhaust?.setIntensity(0.55);
+      animateShip({ position: SHIP_START_POSITION, scale: SHIP_START_SCALE }, 0.8);
+      // Rotate back to side profile + restore start-scene model offset
       if (spaceship.model) {
-        gsap.to(spaceship.model.scale, {
-          x: SHIP_START_SCALE, y: SHIP_START_SCALE, z: SHIP_START_SCALE,
+        gsap.to(spaceship.model.rotation, {
+          x: SHIP_START_X_ROTATION,
+          y: SHIP_START_Y_ROTATION,
+          z: SHIP_START_Z_ROTATION,
+          duration: 0.8,
+          ease: "power2.inOut",
+        });
+        gsap.to(spaceship.model.position, {
+          x: SHIP_START_MODEL_OFFSET.x,
+          y: SHIP_START_MODEL_OFFSET.y,
+          z: SHIP_START_MODEL_OFFSET.z,
           duration: 0.8,
           ease: "power2.inOut",
         });
       }
 
-      // Planet slides out right
-      gsap.to(getCurrentPlanet().group.position, {
-        x: PLANET_OFFSCREEN_RIGHT,
-        duration: 0.8,
-        ease: "power2.in",
+      // Planet[0] exits to LEFT_EXIT with fade-out, then hide all planets
+      const exitMat = planetSystem.planets[0].sphere.material as THREE.MeshStandardMaterial;
+      gsap.to(exitMat, { opacity: 0, duration: 0.7, ease: "power2.in" });
+      gsap.to(planetSystem.planets[0].group.position, {
+        x: PLANET_LEFT_EXIT.x, y: PLANET_LEFT_EXIT.y, z: PLANET_LEFT_EXIT.z,
+        duration: 0.8, ease: "power2.in",
         onComplete: () => {
-          hidePlanet(getCurrentPlanet());
+          for (const p of planetSystem.planets) p.group.visible = false;
           currentSceneIndex = -1;
           scrollController.currentScene = 0;
           scrollController.isTransitioning = false;
           updateSceneIndicator(-1);
+          spaceship.exhaust?.setIntensity(0.18);
+          configureShipOrbit(); // back to start — pivot is in front of nose again
         },
       });
       return;
     }
 
-    // Project-to-project flyby transition
+    // Project-to-project: only outgoing + incoming planets visible during transition
     hideProjectInfo();
+    shipOrbit.disable(); // GSAP takes over ship position
+    spaceship.exhaust?.setIntensity(0.55);
+    animateShip(getShipConfig(projects[nextIndex].id));
 
-    const tl = createTransition({
-      currentPlanet: getCurrentPlanet(),
-      nextPlanet: getNextPlanet(),
-      starfield,
-      nextProject: projects[nextIndex],
-      setupPlanetFn: (planet, proj) => setupPlanet(planet, proj, planetSystem.textures),
+    // Pre-position the incoming planet at its entrance point
+    const incoming = planetSystem.planets[nextIndex];
+    const incomingStart = direction === 1
+      ? getPlanetOrbitPos(nextIndex) // forward: emerge from its distant orbit slot
+      : PLANET_LEFT_EXIT;             // reverse: come back in from left
+    incoming.group.position.copy(incomingStart);
+    incoming.group.visible = true;
+
+    const outgoingPlanet = planetSystem.planets[currentSceneIndex];
+    const capturedOutgoingIndex = currentSceneIndex;
+
+    // Next project's info fades in mid-transition, not after
+    gsap.delayedCall(0.6, () => showProjectInfo(projects[nextIndex]));
+
+    const tl = createZoomTransition({
+      outgoing: outgoingPlanet,
+      incoming,
+      outgoingIndex: currentSceneIndex,
+      incomingIndex: nextIndex,
       direction,
+      starfield,
       canvas,
       warpOverlay,
       onComplete: () => {
+        // Hide the outgoing planet once it's off-frame
+        planetSystem.planets[capturedOutgoingIndex].group.visible = false;
         currentSceneIndex = nextIndex;
         scrollController.currentScene = nextIndex + 1;
-        useA = !useA;
         scrollController.isTransitioning = false;
-        showProjectInfo(projects[nextIndex]);
         updateSceneIndicator(nextIndex);
+        spaceship.exhaust?.setIntensity(0.18);
+        configureShipOrbit(); // re-anchor orbit to new project's planet
       },
     });
-
     tl.play();
   }
 
   scrollController.onSceneChange = handleSceneChange;
 
-  // --- Ship detach/reattach for start view mode ---
-  function detachShipToScene() {
-    if (shipDetached) return;
-    const worldPos = new THREE.Vector3();
-    spaceship.group.getWorldPosition(worldPos);
-    camera.remove(spaceship.group);
-    scene.add(spaceship.group);
-    spaceship.group.position.copy(worldPos);
-    shipDetached = true;
-  }
-
-  function reattachShipToCamera() {
-    if (!shipDetached) return;
-    scene.remove(spaceship.group);
-    camera.add(spaceship.group);
-    spaceship.group.position.copy(SHIP_START_POSITION);
-    if (spaceship.model) {
-      spaceship.model.scale.setScalar(SHIP_START_SCALE);
-    }
-    shipDetached = false;
-  }
-
-  // --- View mode handling ---
-  function enterViewMode() {
-    if (viewModeAnimating) return;
-    viewModeAnimating = true;
-
-    if (currentSceneIndex < 0) {
-      // Start page: detach ship, orbit around it
-      detachShipToScene();
-      const shipWorldPos = spaceship.group.position.clone();
-
-      const lookProxy = { x: 0, y: 0, z: -5 };
-      gsap.to(lookProxy, {
-        x: shipWorldPos.x,
-        y: shipWorldPos.y,
-        z: shipWorldPos.z,
-        duration: 0.4,
-        ease: "power2.inOut",
-        onUpdate() { camera.lookAt(lookProxy.x, lookProxy.y, lookProxy.z); },
-        onComplete() {
-          orbitControls.target.copy(shipWorldPos);
-          orbitControls.enableZoom = true;
-          orbitControls.minDistance = 1;
-          orbitControls.maxDistance = 15;
-          orbitControls.enabled = true;
-          orbitControls.update();
-          viewModeAnimating = false;
-        },
-      });
-    } else {
-      // Project/about page: planet is centered, seamless entry
-      const isAbout = currentSceneIndex === ABOUT_SCENE_INDEX;
-      orbitControls.target.set(0, 0, PLANET_POSITION.z);
-      orbitControls.enableZoom = !isAbout;
-      orbitControls.minDistance = 5;
-      orbitControls.maxDistance = 30;
-      orbitControls.enabled = true;
-      orbitControls.update();
-      viewModeAnimating = false;
-    }
-  }
-
-  function exitViewMode() {
-    if (viewModeAnimating) return;
-    viewModeAnimating = true;
-    orbitControls.enabled = false;
-
-    const isStartPage = currentSceneIndex < 0;
-    const startPos = camera.position.clone();
-
-    const onDone = () => {
-      camera.position.set(0, 0, 0);
-      camera.lookAt(0, 0, -1);
-      camera.fov = CAMERA_FOV;
-      camera.updateProjectionMatrix();
-      orbitControls.enableZoom = false;
-      viewModeAnimating = false;
-    };
-
-    if (!isStartPage) {
-      // Project page: arc interpolation around orbit center
-      // to avoid the straight-line path passing close to the planet
-      const orbitCenter = new THREE.Vector3(0, 0, PLANET_POSITION.z);
-      const startOffset = startPos.clone().sub(orbitCenter);
-      const endOffset = new THREE.Vector3(0, 0, 0).sub(orbitCenter);
-
-      const startSph = new THREE.Spherical().setFromVector3(startOffset);
-      const endSph = new THREE.Spherical().setFromVector3(endOffset);
-
-      const proxy = { t: 0 };
-      gsap.to(proxy, {
-        t: 1,
-        duration: 0.6,
-        ease: "power2.inOut",
-        onUpdate() {
-          const sph = new THREE.Spherical(
-            THREE.MathUtils.lerp(startSph.radius, endSph.radius, proxy.t),
-            THREE.MathUtils.lerp(startSph.phi, endSph.phi, proxy.t),
-            THREE.MathUtils.lerp(startSph.theta, endSph.theta, proxy.t),
-          );
-          camera.position.setFromSpherical(sph).add(orbitCenter);
-          camera.lookAt(orbitCenter);
-        },
-        onComplete: onDone,
-      });
-    } else {
-      // Start page: arc interpolation around ship (same pattern as project page)
-      // Ship is fixed at center — camera only rotates + zooms around it
-      const orbitCenter = spaceship.group.position.clone();
-      const startOffset = startPos.clone().sub(orbitCenter);
-      const endOffset = new THREE.Vector3(0, 0, 0).sub(orbitCenter);
-
-      const startSph = new THREE.Spherical().setFromVector3(startOffset);
-      const endSph = new THREE.Spherical().setFromVector3(endOffset);
-
-      const proxy = { t: 0 };
-      gsap.to(proxy, {
-        t: 1,
-        duration: 0.6,
-        ease: "power2.inOut",
-        onUpdate() {
-          const sph = new THREE.Spherical(
-            THREE.MathUtils.lerp(startSph.radius, endSph.radius, proxy.t),
-            THREE.MathUtils.lerp(startSph.phi, endSph.phi, proxy.t),
-            THREE.MathUtils.lerp(startSph.theta, endSph.theta, proxy.t),
-          );
-          camera.position.setFromSpherical(sph).add(orbitCenter);
-          camera.lookAt(orbitCenter);
-        },
-        onComplete() {
-          reattachShipToCamera();
-          onDone();
-        },
-      });
-    }
-  }
-
-  scrollController.onModeChange = (mode) => {
-    // About scene: always view mode, no travel mode
-    if (currentSceneIndex === ABOUT_SCENE_INDEX) return;
-    if (mode === "view") enterViewMode();
-    else exitViewMode();
+  scrollController.onModeChange = () => {
+    // No view mode for start or project scenes — cursor orbit replaces it.
+    // About scene has its own OrbitControls setup inside jumpToAbout.
   };
 
-  // View mode zoom is handled by OrbitControls (dolly zoom) for both start + project pages
-
-  // --- Jump to about (from nav link) ---
+  // --- Jump to about ---
   function jumpToAbout() {
     if (currentSceneIndex === ABOUT_SCENE_INDEX) return;
     if (scrollController.isTransitioning) return;
     scrollController.isTransitioning = true;
 
-    // Hide current content
     if (currentSceneIndex >= 0 && currentSceneIndex < projects.length) {
       hideProjectInfo();
     }
 
-    // Warp out
     const blurProxy = { blur: 0 };
     gsap.to(blurProxy, {
       blur: 12,
@@ -428,26 +390,25 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
     gsap.to(warpOverlay, { opacity: 0.6, duration: 0.25, ease: "power2.in" });
 
     gsap.delayedCall(0.3, () => {
-      // Teleport: move ship if coming from start
       if (currentSceneIndex === -1) {
         shrinkTitle();
         spaceship.group.position.copy(SHIP_POSITION);
         if (spaceship.model) spaceship.model.scale.setScalar(SHIP_SCALE);
       }
 
-      // Swap planets
-      hidePlanet(getCurrentPlanet());
-      hidePlanet(getNextPlanet());
+      // Hide the whole orbit, show the about planet
+      planetSystem.orbitGroup.visible = false;
+      setupPlanet(planetSystem.aboutPlanet, aboutProject, planetSystem.textures);
+      planetSystem.aboutPlanet.group.position.copy(PLANET_POSITION);
+      planetSystem.aboutPlanet.group.visible = true;
 
-      setupPlanet(getCurrentPlanet(), aboutProject, planetSystem.textures);
-      getCurrentPlanet().group.position.copy(PLANET_POSITION);
-      getCurrentPlanet().group.visible = true;
+      // Hide ship + lights + disable cursor orbit on about scene
+      spaceship.group.visible = false;
+      spaceship.lights.visible = false;
+      shipOrbit.disable();
+      // No black shadow overlay — about scene stands on its own
+      aboutShadow.style.display = "none";
 
-      // Screen-space shadow
-      aboutShadow.style.display = "block";
-      aboutShadow.style.opacity = "1";
-
-      // Warp in
       gsap.to(blurProxy, {
         blur: 0,
         duration: 0.35,
@@ -464,20 +425,11 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
       showAbout();
       updateSceneIndicator(ABOUT_SCENE_INDEX);
 
-      // About: auto-enter view mode (rotate only, no zoom), hide hints
-      orbitControls.target.set(0, 0, PLANET_POSITION.z);
-      orbitControls.enableZoom = false;
-      orbitControls.enabled = true;
-      orbitControls.update();
+      // About is view-only — no drag rotation allowed
+      orbitControls.enabled = false;
       scrollController.mode = "view";
-      const scrollHint = document.getElementById("scroll-hint");
       const spaceHint = document.getElementById("space-hint");
-      if (scrollHint) scrollHint.style.display = "none";
       if (spaceHint) spaceHint.style.display = "none";
-
-      // Enable header title as home link
-      headerTitleEl.style.pointerEvents = "auto";
-      headerTitleEl.style.cursor = "pointer";
     });
   }
 
@@ -490,13 +442,15 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
 
   // --- Render loop ---
   const clock = new THREE.Clock();
-
   function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
     const elapsed = clock.getElapsedTime();
 
     animatePlanets(planetSystem, delta);
+    // Ship cursor orbit: writes ship.group.position absolutely from mouse-driven angle.
+    // Must run BEFORE updateSpaceship so vibration adds tiny oscillation on top.
+    if (!orbitControls.enabled) shipOrbit.update();
     updateSpaceship(spaceship, 0, delta);
     animateStarfield(starfield, delta);
     nebula.update(elapsed);
@@ -508,8 +462,58 @@ export function initScene(canvas: HTMLCanvasElement): SceneAPI {
     renderer.clearDepth();
     renderer.render(scene, camera);
   }
-
   animate();
+
+  // --- Intro fly-in ---
+  // Block scroll only during the first 1.0s — the most visually jumpy window
+  // (ship still far off-screen). After that, GSAP overrides handle interruptions.
+  scrollController.isTransitioning = true;
+  setTimeout(() => {
+    scrollController.isTransitioning = false;
+  }, 1000);
+
+  const tryBoostIntro = () => {
+    if (spaceship.exhaust) {
+      spaceship.exhaust.setIntensity(0.55);
+      return;
+    }
+    setTimeout(tryBoostIntro, 100);
+  };
+  tryBoostIntro();
+
+  const introTl = gsap.timeline({
+    onComplete() {
+      spaceship.exhaust?.setIntensity(0.18);
+      titleEl.style.animation = "breathe 5s ease-in-out infinite";
+    },
+  });
+
+  introTl.to(spaceship.group.position, {
+    x: SHIP_START_POSITION.x,
+    y: SHIP_START_POSITION.y,
+    z: SHIP_START_POSITION.z,
+    duration: 2.4,
+    ease: "power3.out",
+  }, 0);
+
+  // Text fades in immediately on load (no wait for ship)
+  introTl.to(titleEl, {
+    opacity: 0.9,
+    duration: 0.5,
+    ease: "power2.out",
+  }, 0);
+
+  const startBodyEl = document.getElementById("start-body");
+  if (startBodyEl) {
+    introTl.to(startBodyEl, {
+      opacity: 0.72,
+      duration: 0.4,
+      ease: "power2.out",
+    }, 0.15);
+  }
+
+  // Silence unused-import lint for hidePlanet (exported but not referenced directly here)
+  void hidePlanet;
 
   return { jumpToAbout };
 }
