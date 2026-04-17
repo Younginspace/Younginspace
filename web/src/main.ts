@@ -2,7 +2,14 @@ import "./index.css";
 
 if (window.location.pathname === "/guestbook") {
   // Guestbook standalone page
-  import("./guestbook-page").then(({ initGuestbookPage }) => initGuestbookPage());
+  Promise.all([
+    import("./guestbook-scene"),
+    import("./guestbook-page"),
+  ]).then(([{ initGuestbookScene }, { initGuestbookPage }]) => {
+    const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+    initGuestbookScene(canvas);
+    initGuestbookPage();
+  });
 } else {
   // 3D homepage
   Promise.all([
@@ -22,12 +29,6 @@ if (window.location.pathname === "/guestbook") {
     aboutLink?.addEventListener("click", (e) => {
       e.preventDefault();
       sceneApi.jumpToAbout();
-    });
-
-    // Header title → home
-    const headerTitle = document.getElementById("header-title");
-    headerTitle?.addEventListener("click", () => {
-      window.location.href = "/";
     });
   });
 }

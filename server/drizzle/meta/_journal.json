@@ -8,6 +8,13 @@
       "when": 1775721630595,
       "tag": "0000_yielding_callisto",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1776423264551,
+      "tag": "0001_add_replies_and_likes",
+      "breakpoints": true
     }
   ]
 }
