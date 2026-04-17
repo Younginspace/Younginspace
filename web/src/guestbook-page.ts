@@ -40,16 +40,23 @@ export async function initGuestbookPage() {
 }
 
 function setupStaticDOM() {
-  // Hide main-page-only elements
-  document.getElementById("title")!.style.display = "none";
-  document.getElementById("project-info")!.style.display = "none";
-  document.getElementById("scroll-hint")!.style.display = "none";
-  document.getElementById("scene-indicator")!.style.display = "none";
+  // Hide main-page-only elements (null-safe — DOM shape evolves with the
+  // main page; we don't want a missing id to abort guestbook init)
+  const hideIds = [
+    "title",
+    "start-pane",
+    "start-body",
+    "project-info",
+    "scroll-hint",
+    "space-hint",
+    "scene-indicator",
+  ];
+  for (const id of hideIds) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  }
 
-  // Reveal header title as home link
-  const headerTitleEl = document.getElementById("header-title")!;
-  headerTitleEl.style.opacity = "1";
-  headerTitleEl.style.pointerEvents = "auto";
+  // Header title is already clickable globally (anchor + CSS); nothing to do.
 
   // Build overlay shell
   const overlay = document.getElementById("guestbook-overlay")!;
