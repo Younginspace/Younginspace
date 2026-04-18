@@ -22,6 +22,16 @@ html, body {
   z-index: 0;
 }
 
+/* Pre-JS state: set by inline script before body paints so frame-1 of a
+   scene-heavy route (/guestbook, /#about) is blurred rather than flashing.
+   JS's route-fade.ts takes over with GSAP on mount and navigation. */
+html.entering #canvas {
+  filter: blur(14px);
+}
+html.entering #warp-overlay {
+  opacity: 0.55;
+}
+
 /* ---- Header ---- */
 #header {
   position: fixed;

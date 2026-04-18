@@ -4,6 +4,14 @@ import * as THREE from "three";
  * Star Nest by Pablo Roman Andrioli — MIT License
  * Adapted for Three.js fullscreen quad background.
  * Dimmed & desaturated so clickable project stars remain the focal point.
+ *
+ * Tunable uniforms (see `?debug=nebula` panel):
+ *   - uIntensity:   global brightness multiplier
+ *   - uWarmth:      tint strength on highlights/shadows
+ *   - uCoreGlow:    radial core glow strength
+ *   - uLift:        sepia lift in deep-space dark regions
+ *   - uSaturation:  mix between greyscale and full color
+ *   - uOchre / uRust / uCore / uEdge: individual color stops
  */
 
 const vertexShader = `
@@ -14,18 +22,18 @@ const vertexShader = `
   }
 `;
 
-// Star Nest — ported from Shadertoy, with tweaks:
-//  - brightness turned way down (0.0008 vs 0.0015)
-//  - saturation reduced (0.65 vs 0.85)
-//  - final output multiplied by 0.4 for subtlety
-//  - slow auto-rotation instead of mouse control
 const fragmentShader = `
   uniform float iTime;
   uniform vec2 iResolution;
-  uniform float uIntensity;  // global brightness multiplier (1.0 = default)
-  uniform float uWarmth;     // amber tint strength (1.0 = default)
-  uniform float uCoreGlow;   // ambient core strength (1.0 = default)
-  uniform float uLift;       // deep-space color lift (1.0 = default)
+  uniform float uIntensity;
+  uniform float uWarmth;
+  uniform float uCoreGlow;
+  uniform float uLift;
+  uniform float uSaturation;
+  uniform vec3 uOchre;   // warm highlight tint
+  uniform vec3 uRust;    // warm shadow tint
+  uniform vec3 uCore;    // center radial glow
+  uniform vec3 uEdge;    // outer vignette glow
   varying vec2 vUv;
 
   #define iterations 17
@@ -40,7 +48,6 @@ const fragmentShader = `
   #define brightness 0.0008
   #define darkmatter 0.300
   #define distfading 0.730
-  #define saturation 0.65
 
   void main() {
     vec2 uv = vUv - 0.5;
@@ -81,34 +88,32 @@ const fragmentShader = `
       fade *= distfading;
       s += stepsize;
     }
-    v = mix(vec3(length(v)), v, saturation);
+    v = mix(vec3(length(v)), v, uSaturation);
     v *= 0.01 * 0.4;
 
-    // Soft-clamp bright hot spots — exponential tonemap rolls off highlights
-    // while preserving mid + dark tones, eliminating "starburst" pop artifacts.
+    // Soft-clamp bright hot spots
     v = vec3(1.0) - exp(-v * 2.2);
 
-    // Retro dust nebula: warm sepia-amber field with dusty variation.
-    // Key: muted/dim warm tones so the bright white-hot exhaust core still pops.
+    // Dust nebula tint — blend highlight (ochre) and shadow (rust) across the field
     vec2 q = vUv * 2.0;
     float dustVar = sin(q.x * 2.6 + iTime * 0.03) * cos(q.y * 2.2 - iTime * 0.035);
     float dustMix = 0.5 + 0.5 * dustVar;
 
-    vec3 ochreTint = vec3(1.00, 0.61, 0.26) * uWarmth;
-    vec3 rustTint  = vec3(0.85, 0.38, 0.15) * uWarmth;
-    vec3 nebTint = mix(rustTint, ochreTint, dustMix);
+    vec3 highlightTint = uOchre * uWarmth;
+    vec3 shadowTint    = uRust  * uWarmth;
+    vec3 nebTint = mix(shadowTint, highlightTint, dustMix);
     v *= nebTint;
 
-    // Radial glow: moderate warm ochre core, dim sienna edge
+    // Radial glow
     float vignette = length(vUv - 0.5) * 1.4;
-    vec3 ambientCore = vec3(0.15, 0.075, 0.022) * smoothstep(0.9, 0.0, vignette) * 0.50 * uCoreGlow;
-    vec3 ambientEdge = vec3(0.035, 0.015, 0.006) * smoothstep(0.0, 1.0, vignette) * 0.38;
+    vec3 ambientCore = uCore * smoothstep(0.9, 0.0, vignette) * 0.50 * uCoreGlow;
+    vec3 ambientEdge = uEdge * smoothstep(0.0, 1.0, vignette) * 0.38;
     v += ambientCore + ambientEdge;
 
-    // Moderate sepia lift (tweakable)
+    // Sepia lift
     v += vec3(0.016, 0.008, 0.003) * uLift;
 
-    // Global intensity applied last
+    // Global intensity
     v *= uIntensity;
 
     gl_FragColor = vec4(v, 1.0);
@@ -131,10 +136,18 @@ export function createNebula(): Nebula {
       iResolution: {
         value: new THREE.Vector2(window.innerWidth, window.innerHeight),
       },
-      uIntensity: { value: 0.74 },
-      uWarmth:    { value: 1.42 },
-      uCoreGlow:  { value: 0.34 },
-      uLift:      { value: 0.94 },
+      // Retro-elegant warm-dust palette, tuned against the ship's cold blue
+      // exhaust (see spaceship.ts — "Blade Runner 2049 cold-vs-warm").
+      // Locked in via ?debug=nebula panel.
+      uIntensity:  { value: 1.59 },
+      uWarmth:     { value: 1.56 },
+      uCoreGlow:   { value: 0.66 },
+      uLift:       { value: 1.04 },
+      uSaturation: { value: 0.39 },
+      uOchre:      { value: new THREE.Color(0xe8a474) }, // dusty peach amber (highlights)
+      uRust:       { value: new THREE.Color(0x944a35) }, // burnt sienna / terracotta (shadows)
+      uCore:       { value: new THREE.Color(0x1a0f05) }, // deep warm brown (core glow)
+      uEdge:       { value: new THREE.Color(0x060302) }, // warm near-black (edge)
     },
     depthWrite: false,
     depthTest: false,

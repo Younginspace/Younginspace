@@ -1,13 +1,12 @@
 import { client } from "./lib/edgespark";
-import { t, initI18n, onLangChange } from "./i18n";
-import { initAuthModal, setupSignInButton, updateHeaderForUser } from "./auth-modal";
+import { t, onLangChange } from "./i18n";
 
 interface Message {
   id: number;
   user_name: string;
   content: string;
   created_at: string;
-  visible?: number; // only present on /mine and /admin responses
+  visible?: number;
   admin_reply: string | null;
   admin_reply_at: string | null;
   like_count: number;
@@ -19,46 +18,63 @@ interface MeResponse {
   isAdmin: boolean;
 }
 
+// Module-local state — only valid while mounted. unmountGuestbook resets it.
 let me: MeResponse = { user: null, isAdmin: false };
 let publicMessages: Message[] = [];
 let myMessages: Message[] = [];
+let mountController: AbortController | null = null;
+let unsubscribeLang: (() => void) | null = null;
 
-export async function initGuestbookPage() {
-  initI18n();
-  initAuthModal();
-  setupSignInButton();
-  updateHeaderForUser();
+export async function mountGuestbook() {
+  // Defensive: if previously mounted without unmount, clean up first.
+  if (mountController) unmountGuestbook();
 
-  setupStaticDOM();
+  mountController = new AbortController();
+  const { signal } = mountController;
 
-  // Load in parallel
-  await loadAll();
+  buildOverlay(signal);
+
+  await loadAll(signal);
+  if (signal.aborted) return;
 
   renderAll();
 
-  onLangChange(() => renderAll());
+  // Re-render on language toggle for the lifetime of this mount.
+  const langListener = () => {
+    if (signal.aborted) return;
+    renderAll();
+  };
+  onLangChange(langListener);
+  unsubscribeLang = () => {
+    // i18n.ts doesn't expose an unsubscribe today, so rely on the aborted
+    // signal inside the callback. Keep this as a hook for future cleanup.
+  };
 }
 
-function setupStaticDOM() {
-  // Hide main-page-only elements (null-safe — DOM shape evolves with the
-  // main page; we don't want a missing id to abort guestbook init)
-  const hideIds = [
-    "title",
-    "start-pane",
-    "start-body",
-    "project-info",
-    "scroll-hint",
-    "space-hint",
-    "scene-indicator",
-  ];
-  for (const id of hideIds) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = "none";
+export function unmountGuestbook() {
+  if (mountController) {
+    mountController.abort();
+    mountController = null;
+  }
+  if (unsubscribeLang) {
+    unsubscribeLang();
+    unsubscribeLang = null;
   }
 
-  // Header title is already clickable globally (anchor + CSS); nothing to do.
+  const overlay = document.getElementById("guestbook-overlay");
+  if (overlay) {
+    overlay.innerHTML = "";
+    overlay.style.display = "";
+    overlay.style.opacity = "";
+    overlay.style.transition = "";
+  }
 
-  // Build overlay shell
+  publicMessages = [];
+  myMessages = [];
+  me = { user: null, isAdmin: false };
+}
+
+function buildOverlay(signal: AbortSignal) {
   const overlay = document.getElementById("guestbook-overlay")!;
   overlay.innerHTML = `
     <header class="gb-head">
@@ -78,32 +94,44 @@ function setupStaticDOM() {
   overlay.style.display = "block";
   overlay.style.opacity = "0";
   requestAnimationFrame(() => {
+    if (signal.aborted) return;
     overlay.style.transition = "opacity 0.5s ease";
     overlay.style.opacity = "1";
   });
+
+  // Outside-click closes any open admin menu. Scoped to this mount via signal.
+  document.addEventListener(
+    "click",
+    (e) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".gb-menu")) closeAllMenus();
+    },
+    { signal },
+  );
 }
 
-async function loadAll() {
+async function loadAll(signal: AbortSignal) {
   try {
-    const meRes = await client.api.fetch("/api/public/me");
+    const meRes = await client.api.fetch("/api/public/me", { signal });
     me = (await meRes.json()) as MeResponse;
   } catch {
     me = { user: null, isAdmin: false };
   }
+  if (signal.aborted) return;
 
-  // Admin sees everything via admin endpoint, which already includes hidden
   const listUrl = me.isAdmin ? "/api/messages/admin" : "/api/public/messages";
   try {
-    const res = await client.api.fetch(listUrl);
+    const res = await client.api.fetch(listUrl, { signal });
     const data = (await res.json()) as { messages: Message[] };
     publicMessages = data.messages || [];
   } catch {
     publicMessages = [];
   }
+  if (signal.aborted) return;
 
   if (me.user && !me.isAdmin) {
     try {
-      const res = await client.api.fetch("/api/messages/mine");
+      const res = await client.api.fetch("/api/messages/mine", { signal });
       const data = (await res.json()) as { messages: Message[] };
       myMessages = data.messages || [];
     } catch {
@@ -114,17 +142,25 @@ async function loadAll() {
   }
 }
 
+async function reload() {
+  if (!mountController || mountController.signal.aborted) return;
+  await loadAll(mountController.signal);
+  if (mountController?.signal.aborted) return;
+  renderAll();
+}
+
 function renderAll() {
-  const titleEl = document.querySelector<HTMLElement>(".gb-title")!;
-  const subtitleEl = document.querySelector<HTMLElement>(".gb-subtitle")!;
+  const titleEl = document.querySelector<HTMLElement>(".gb-title");
+  const subtitleEl = document.querySelector<HTMLElement>(".gb-subtitle");
+  if (!titleEl || !subtitleEl) return;
   titleEl.textContent = t("boardTitle");
   subtitleEl.textContent = t("boardSubtitle");
 
-  const wallLabel = document.querySelector<HTMLElement>("#gb-wall .gb-section-label")!;
-  wallLabel.textContent = t("boardWall");
+  const wallLabel = document.querySelector<HTMLElement>("#gb-wall .gb-section-label");
+  if (wallLabel) wallLabel.textContent = t("boardWall");
 
-  const mineLabel = document.querySelector<HTMLElement>("#gb-mine-section .gb-section-label")!;
-  mineLabel.textContent = t("boardMine");
+  const mineLabel = document.querySelector<HTMLElement>("#gb-mine-section .gb-section-label");
+  if (mineLabel) mineLabel.textContent = t("boardMine");
 
   renderPublicList();
   renderMineSection();
@@ -132,7 +168,8 @@ function renderAll() {
 }
 
 function renderPublicList() {
-  const el = document.getElementById("gb-public-list")!;
+  const el = document.getElementById("gb-public-list");
+  if (!el) return;
   if (publicMessages.length === 0) {
     el.innerHTML = `<div class="gb-empty">${t("boardEmpty")}</div>`;
     return;
@@ -142,29 +179,27 @@ function renderPublicList() {
 }
 
 function renderMineSection() {
-  const section = document.getElementById("gb-mine-section")!;
-  if (!me.user || me.isAdmin) {
-    section.hidden = true;
-    return;
-  }
-  if (myMessages.length === 0) {
+  const section = document.getElementById("gb-mine-section");
+  if (!section) return;
+  if (!me.user || me.isAdmin || myMessages.length === 0) {
     section.hidden = true;
     return;
   }
   section.hidden = false;
-  const el = document.getElementById("gb-mine-list")!;
+  const el = document.getElementById("gb-mine-list");
+  if (!el) return;
   el.innerHTML = myMessages.map((m) => renderCard(m, { context: "mine" })).join("");
   bindCard(el, "mine");
 }
 
 function renderComposeSection() {
-  const section = document.getElementById("gb-compose-section")!;
+  const section = document.getElementById("gb-compose-section");
+  if (!section) return;
   if (!me.user) {
     section.innerHTML = `<div class="gb-hint">${t("boardLoginHint")}</div>`;
     return;
   }
   if (me.isAdmin) {
-    // Admin doesn't participate as a guest
     section.innerHTML = "";
     return;
   }
@@ -184,17 +219,18 @@ function renderComposeSection() {
   const form = document.getElementById("gb-form") as HTMLFormElement;
   const input = document.getElementById("gb-input") as HTMLTextAreaElement;
   const charCount = document.getElementById("gb-char-count")!;
+  const signal = mountController?.signal;
   input.addEventListener("input", () => {
     const len = input.value.length;
     charCount.textContent = `${len}/500`;
     charCount.classList.toggle("gb-char-warn", len > 450);
-  });
+  }, signal ? { signal } : undefined);
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       form.requestSubmit();
     }
-  });
+  }, signal ? { signal } : undefined);
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const content = input.value.trim();
@@ -206,20 +242,19 @@ function renderComposeSection() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
+        signal,
       });
       if (res.status === 409) {
-        await loadAll();
-        renderAll();
+        await reload();
         return;
       }
       if (!res.ok) throw new Error("post failed");
       input.value = "";
-      await loadAll();
-      renderAll();
+      await reload();
     } catch {
       submit.disabled = false;
     }
-  });
+  }, signal ? { signal } : undefined);
 }
 
 interface CardCtx {
@@ -313,8 +348,13 @@ function renderAdminMenu(m: Message): string {
 }
 
 function bindCard(container: HTMLElement, context: "public" | "mine") {
+  const signal = mountController?.signal;
   container.querySelectorAll<HTMLButtonElement>("[data-action]").forEach((btn) => {
-    btn.addEventListener("click", (e) => handleAction(btn, e, context));
+    btn.addEventListener(
+      "click",
+      (e) => handleAction(btn, e, context),
+      signal ? { signal } : undefined,
+    );
   });
 }
 
@@ -322,6 +362,7 @@ async function handleAction(btn: HTMLButtonElement, e: Event, context: "public" 
   e.stopPropagation();
   const action = btn.dataset.action!;
   const id = btn.dataset.id ? parseInt(btn.dataset.id, 10) : NaN;
+  const signal = mountController?.signal;
 
   switch (action) {
     case "menu-toggle": {
@@ -336,17 +377,16 @@ async function handleAction(btn: HTMLButtonElement, e: Event, context: "public" 
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ visible: current ? 0 : 1 }),
+        signal,
       });
-      await loadAll();
-      renderAll();
+      await reload();
       break;
     }
     case "admin-delete":
     case "own-delete": {
       if (!confirm(t("boardConfirmDelete"))) return;
-      await client.api.fetch(`/api/messages/${id}`, { method: "DELETE" });
-      await loadAll();
-      renderAll();
+      await client.api.fetch(`/api/messages/${id}`, { method: "DELETE", signal });
+      await reload();
       break;
     }
     case "reply-open": {
@@ -378,9 +418,9 @@ async function handleAction(btn: HTMLButtonElement, e: Event, context: "public" 
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reply: reply || null }),
+        signal,
       });
-      await loadAll();
-      renderAll();
+      await reload();
       break;
     }
     case "reply-remove": {
@@ -388,9 +428,9 @@ async function handleAction(btn: HTMLButtonElement, e: Event, context: "public" 
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reply: null }),
+        signal,
       });
-      await loadAll();
-      renderAll();
+      await reload();
       break;
     }
     case "like": {
@@ -401,7 +441,6 @@ async function handleAction(btn: HTMLButtonElement, e: Event, context: "public" 
       }
       const msg = findMessage(id, context);
       if (!msg) return;
-      // Optimistic UI
       const wasLiked = msg.has_liked;
       msg.has_liked = !wasLiked;
       msg.like_count = Math.max(0, msg.like_count + (wasLiked ? -1 : 1));
@@ -409,13 +448,13 @@ async function handleAction(btn: HTMLButtonElement, e: Event, context: "public" 
       try {
         const res = await client.api.fetch(`/api/messages/${id}/like`, {
           method: wasLiked ? "DELETE" : "POST",
+          signal,
         });
         const data = (await res.json()) as { like_count: number; has_liked: boolean };
         msg.like_count = data.like_count;
         msg.has_liked = data.has_liked;
         updateLikeUI(btn, msg);
       } catch {
-        // Revert
         msg.has_liked = wasLiked;
         msg.like_count = Math.max(0, msg.like_count + (wasLiked ? 1 : -1));
         updateLikeUI(btn, msg);
@@ -445,11 +484,6 @@ function closeAllMenus(except?: HTMLElement) {
     el.hidden = true;
   });
 }
-
-document.addEventListener("click", (e) => {
-  const target = e.target as HTMLElement;
-  if (!target.closest(".gb-menu")) closeAllMenus();
-});
 
 function formatTime(iso: string): string {
   const d = new Date(iso.includes("T") ? iso : iso + "Z");
