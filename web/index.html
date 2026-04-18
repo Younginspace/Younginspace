@@ -7,16 +7,41 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <style>
+      /* Paint dark before any stylesheet loads — kills the white flash
+         on full-page navigation / refresh. */
+      html, body { background: #000; margin: 0; }
+      /* FOUC guard — Vite dev loads index.css asynchronously through JS, so
+         the brief window before it applies would flash every text element
+         with browser-default styles (headings top-left, nav as blue links,
+         etc.). Hide the whole body until main.ts signals the scene is ready;
+         canvas renders into its backbuffer unaffected by visibility. */
+      html.pre-fouc body { visibility: hidden; }
+    </style>
+    <script>
+      // Pre-JS flags. `pre-fouc` gates body visibility, `entering` gates the
+      // blur-in reveal for scene-heavy routes. Both removed by main.ts once
+      // the scene has rendered its first frame.
+      (function () {
+        document.documentElement.classList.add("pre-fouc");
+        var isGuestbook = location.pathname === "/guestbook";
+        var isAboutHash = location.pathname === "/" && location.hash === "#about";
+        if (isGuestbook || isAboutHash) {
+          document.documentElement.classList.add("entering");
+        }
+      })();
+    </script>
   </head>
   <body>
     <canvas id="canvas"></canvas>
     <div id="warp-overlay"></div>
 
     <header id="header">
-      <div id="header-title">YOUNGINSPACE</div>
+      <a href="/" id="header-title">YOUNGINSPACE</a>
       <nav id="nav-right">
-        <a href="#" class="nav-link" data-i18n="about">About</a>
-        <a href="#" class="nav-link" data-i18n="blog">Blog</a>
+        <a href="/guestbook" class="nav-link" data-i18n="guestbookNav">Guestbook</a>
+        <a href="/#about" class="nav-link" data-i18n="about">About</a>
+        <a href="#" class="nav-link" data-i18n="blog" hidden>Blog</a>
         <button id="lang-toggle" class="nav-link" title="Switch language">EN</button>
         <div style="position:relative">
           <a href="#" class="nav-link nav-signin" data-i18n="signin">Sign In</a>
@@ -50,9 +75,6 @@ Scroll to Explore with me.</p>
     <div id="space-hint" data-i18n="spaceHint">Press space to continue</div>
 
     <div id="scene-indicator"></div>
-
-    <!-- Guestbook Link -->
-    <a id="guestbook-fab" href="/guestbook" data-i18n="guestbookFab">Leave something behind :)</a>
 
     <div id="auth-modal">
       <div id="auth-backdrop"></div>
