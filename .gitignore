@@ -71,3 +71,4 @@ web/package-lock.json
 *.glb
 !web/public/**/*.glb
 phmplanet.jpeg
+about_*.png
